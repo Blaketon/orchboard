@@ -1,7 +1,7 @@
 // Types for the HTTP API, shared by the server and the browser code. Type-only on purpose:
 // nothing here exists at runtime, so the browser never has to load this file.
 
-import type { PermissionMode } from './permission-modes.ts';
+import type { CodexPermissionMode, PermissionMode } from './permission-modes.ts';
 
 export type AgentState = 'working' | 'blocked' | 'done';
 
@@ -10,12 +10,15 @@ export type AgentProvider = 'claude' | 'codex';
 
 /** `POST /api/tasks`. */
 export interface StartTaskRequest {
+  /** Defaults to Claude Code. */
+  readonly provider?: AgentProvider;
   /** Absolute path of the project folder to run the agent in. */
   readonly cwd: string;
   readonly prompt: string;
   /** Defaults to the prompt's first line. */
   readonly name?: string;
-  readonly permissionMode?: PermissionMode;
+  /** A Claude Code mode, or a Codex mode for Codex tasks. */
+  readonly permissionMode?: PermissionMode | CodexPermissionMode;
   /** Ids of uploaded attachments the agent should look at. */
   readonly images?: readonly string[];
 }
@@ -28,6 +31,28 @@ export interface StartTaskResponse {
 /** `POST /api/agents/:id/reply`. */
 export interface ReplyRequest {
   readonly prompt: string;
+}
+
+/** Something a running Codex task needs the user to decide before it continues. */
+export interface Approval {
+  readonly id: string;
+  readonly kind: 'command' | 'fileChange' | 'permissions' | 'question';
+  /** Short heading, e.g. "Run a command". */
+  readonly title: string;
+  /** What exactly is asked: the command, the files, the permissions, or the question. */
+  readonly detail: string;
+  readonly reason: string | null;
+  /** Whether "allow for the rest of the session" can be chosen. */
+  readonly canAllowForSession: boolean;
+  /** Orchboard can't answer this kind of request, only decline it. */
+  readonly declineOnly: boolean;
+}
+
+export type ApprovalDecision = 'accept' | 'acceptForSession' | 'decline';
+
+/** `POST /api/agents/:id/approvals/:approvalId`. */
+export interface ApprovalRequest {
+  readonly decision: ApprovalDecision;
 }
 
 /** A project the user added to the sidebar. */
@@ -57,10 +82,12 @@ export interface QueuedTask {
   readonly id: string;
   readonly columnId: string;
   readonly name: string;
+  /** Missing in queues saved by older versions, which only ran Claude Code. */
+  readonly provider?: AgentProvider;
   /** Folder the agent will run in; the column's project unless changed. */
   readonly cwd: string;
   readonly prompt: string;
-  readonly permissionMode: PermissionMode;
+  readonly permissionMode: PermissionMode | CodexPermissionMode;
   /** Attachment ids, as in `StartTaskRequest.images`. Missing in queues saved by older versions. */
   readonly images?: readonly string[];
   readonly createdAt: number;
@@ -109,6 +136,10 @@ export interface Agent {
   readonly state: AgentState;
   /** Process ID while the agent's process is alive; null once it has exited. */
   readonly pid: number | null;
+  /** Codex requests waiting for a decision. Claude Code agents ask in their terminal instead. */
+  readonly approvals?: readonly Approval[];
+  /** Why the last turn failed, when known. */
+  readonly error?: string | null;
 }
 
 /** `GET /api/agents` and each `agents` event on `GET /api/events`. */

@@ -53,6 +53,7 @@ describe('QueueStore', () => {
     const { queue, started } = await store.start(id);
     assert.deepEqual(starts, [
       {
+        provider: 'claude',
         cwd: 'C:/Git/acme',
         prompt: 'Fix the tests',
         name: 'Fix the tests',

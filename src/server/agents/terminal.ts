@@ -2,7 +2,8 @@ import { spawn } from 'node:child_process';
 import type { Agent } from '../../shared/api.ts';
 import { HttpError } from '../http-error.ts';
 
-const AGENT_ID = /^[A-Za-z0-9_-]+$/;
+/** Command words are program names and ids only, so they never need quoting. */
+const COMMAND_WORD = /^[A-Za-z0-9_.-]+$/;
 
 export interface TerminalCommand {
   readonly file: string;
@@ -12,19 +13,22 @@ export interface TerminalCommand {
 }
 
 /**
- * The command that opens a new terminal window attached to an agent (`claude attach <id>`),
- * starting in the agent's folder. Every value is escaped for the shell it ends up in.
+ * The command that opens a new terminal window running `command` (e.g. `claude attach <id>`)
+ * in the agent's folder. The folder is escaped for the shell it ends up in.
  */
 export function terminalCommand(
   platform: NodeJS.Platform,
   cwd: string,
-  agentId: string,
+  command: readonly string[],
 ): TerminalCommand {
-  if (!AGENT_ID.test(agentId)) throw new HttpError(400, 'Invalid agent id.');
+  if (!command.length || !command.every((word) => COMMAND_WORD.test(word))) {
+    throw new HttpError(400, 'Invalid agent id.');
+  }
+  const commandLine = command.join(' ');
 
   if (platform === 'win32') {
     // An encoded command sidesteps PowerShell and cmd quoting rules entirely.
-    const script = `Set-Location -LiteralPath '${cwd.replace(/'/g, "''")}'; claude attach ${agentId}`;
+    const script = `Set-Location -LiteralPath '${cwd.replace(/'/g, "''")}'; ${commandLine}`;
     const encoded = Buffer.from(script, 'utf16le').toString('base64');
     // `start` opens a new console window. The command line holds only fixed text and base64,
     // so cmd.exe has nothing to interpret.
@@ -40,7 +44,7 @@ export function terminalCommand(
     };
   }
 
-  const shellCommand = `cd ${shellQuote(cwd)} && claude attach ${agentId}`;
+  const shellCommand = `cd ${shellQuote(cwd)} && ${commandLine}`;
   if (platform === 'darwin') {
     const appleScriptString = shellCommand.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     return {
@@ -83,7 +87,7 @@ export async function openAgentTerminal(
   platform: NodeJS.Platform = process.platform,
 ): Promise<void> {
   try {
-    await launch(terminalCommand(platform, agent.cwd, agent.id));
+    await launch(terminalCommand(platform, agent.cwd, attachCommand(agent)));
   } catch (error) {
     if (error instanceof HttpError) throw error;
     throw new HttpError(
@@ -91,4 +95,14 @@ export async function openAgentTerminal(
       `Could not open a terminal: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
+}
+
+/** The CLI command that continues an agent's session interactively. */
+export function attachCommand(agent: Agent): string[] {
+  if (agent.provider === 'claude') return ['claude', 'attach', agent.id];
+  if (!agent.sessionId) throw new HttpError(409, 'Codex has not started this task yet.');
+  if (agent.pid !== null) {
+    throw new HttpError(409, 'This task is running in Orchboard. Open a terminal once it stops.');
+  }
+  return ['codex', 'resume', agent.sessionId];
 }

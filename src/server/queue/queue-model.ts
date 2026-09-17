@@ -1,8 +1,13 @@
 import path from 'node:path';
 import type { QueueColumn, QueuedTask, QueueState } from '../../shared/api.ts';
 import { projectKey } from '../../shared/projects.ts';
-import { DEFAULT_PERMISSION_MODE, isPermissionMode } from '../../shared/permission-modes.ts';
-import { defaultName, MAX_NAME_CHARS, MAX_PROMPT_CHARS } from '../agents/claude-actions.ts';
+import { isCodexPermissionMode, isPermissionMode } from '../../shared/permission-modes.ts';
+import {
+  parseName,
+  parsePermissionMode,
+  parsePrompt,
+  parseProvider,
+} from '../agents/task-request.ts';
 import { isAttachmentId, parseAttachmentIds } from '../attachments/attachment-store.ts';
 import { HttpError, isRecord } from '../http-error.ts';
 
@@ -52,14 +57,16 @@ export function addTask(state: QueueState, request: unknown, id: string, now: nu
     throw new HttpError(400, 'A task needs a column.');
   }
   const column = findColumn(state, request.columnId);
-  const prompt = taskPrompt(request.prompt);
+  const prompt = parsePrompt(request.prompt);
+  const provider = parseProvider(request.provider);
   const task: QueuedTask = {
     id,
     columnId: column.id,
-    name: taskName(request.name, prompt),
+    name: parseName(request.name, prompt),
+    provider,
     cwd: taskCwd(request.cwd, column.project),
     prompt,
-    permissionMode: taskMode(request.permissionMode),
+    permissionMode: parsePermissionMode(provider, request.permissionMode),
     images: parseAttachmentIds(request.images),
     createdAt: now,
   };
@@ -69,14 +76,19 @@ export function addTask(state: QueueState, request: unknown, id: string, now: nu
 export function updateTask(state: QueueState, id: string, request: unknown): QueueState {
   const task = findTask(state, id);
   if (!isRecord(request)) throw new HttpError(400, 'Expected a JSON object.');
-  const prompt = request.prompt === undefined ? task.prompt : taskPrompt(request.prompt);
+  const prompt = request.prompt === undefined ? task.prompt : parsePrompt(request.prompt);
+  const oldProvider = task.provider ?? 'claude';
+  const provider = request.provider === undefined ? oldProvider : parseProvider(request.provider);
+  // Switching agents without choosing a mode falls back to the new agent's default.
+  const mode =
+    request.permissionMode ?? (provider === oldProvider ? task.permissionMode : undefined);
   const updated: QueuedTask = {
     ...task,
     prompt,
-    name: request.name === undefined ? task.name : taskName(request.name, prompt),
+    name: request.name === undefined ? task.name : parseName(request.name, prompt),
+    provider,
     cwd: request.cwd === undefined ? task.cwd : taskCwd(request.cwd, task.cwd),
-    permissionMode:
-      request.permissionMode === undefined ? task.permissionMode : taskMode(request.permissionMode),
+    permissionMode: parsePermissionMode(provider, mode),
     images: request.images === undefined ? (task.images ?? []) : parseAttachmentIds(request.images),
   };
   return { ...state, tasks: state.tasks.map((item) => (item.id === id ? updated : item)) };
@@ -136,33 +148,12 @@ function columnName(value: unknown): string {
   return name;
 }
 
-function taskPrompt(value: unknown): string {
-  const prompt = typeof value === 'string' ? value.trim() : '';
-  if (!prompt) throw new HttpError(400, 'Write a prompt for the task.');
-  if (prompt.length > MAX_PROMPT_CHARS) throw new HttpError(400, 'The prompt is too long.');
-  return prompt;
-}
-
-function taskName(value: unknown, prompt: string): string {
-  const name = typeof value === 'string' ? value.trim() : '';
-  if (name.length > MAX_NAME_CHARS) {
-    throw new HttpError(400, `Task names can be at most ${MAX_NAME_CHARS} characters.`);
-  }
-  return name || defaultName(prompt);
-}
-
 function taskCwd(value: unknown, fallback: string): string {
   if (value === undefined || value === '') return fallback;
   if (typeof value !== 'string' || !path.isAbsolute(value.trim())) {
     throw new HttpError(400, 'The task folder must be an absolute path.');
   }
   return value.trim();
-}
-
-function taskMode(value: unknown) {
-  if (value === undefined) return DEFAULT_PERMISSION_MODE;
-  if (!isPermissionMode(value)) throw new HttpError(400, 'Unknown permission mode.');
-  return value;
 }
 
 export function isQueueState(value: unknown): value is QueueState {
@@ -185,7 +176,10 @@ export function isQueueState(value: unknown): value is QueueState {
         typeof task.name === 'string' &&
         typeof task.cwd === 'string' &&
         typeof task.prompt === 'string' &&
-        isPermissionMode(task.permissionMode) &&
+        (task.provider === 'codex'
+          ? isCodexPermissionMode(task.permissionMode)
+          : (task.provider === undefined || task.provider === 'claude') &&
+            isPermissionMode(task.permissionMode)) &&
         (task.images === undefined ||
           (Array.isArray(task.images) && task.images.every(isAttachmentId))) &&
         typeof task.createdAt === 'number',

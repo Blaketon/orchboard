@@ -16,8 +16,13 @@ export interface AgentFeed {
   refresh(): void;
 }
 
+export interface AgentListResult extends ParseResult {
+  /** Set when some agents couldn't be listed but others could, e.g. Claude Code is missing. */
+  readonly error?: string;
+}
+
 export interface AgentMonitorOptions {
-  readonly list: () => Promise<ParseResult>;
+  readonly list: () => Promise<AgentListResult>;
   readonly intervalMs?: number;
   readonly log?: (message: string) => void;
   readonly now?: () => number;
@@ -28,7 +33,7 @@ export interface AgentMonitorOptions {
  * changed, so every open browser tab shares one `claude agents` process per interval.
  */
 export class AgentMonitor implements AgentFeed {
-  readonly #list: () => Promise<ParseResult>;
+  readonly #list: () => Promise<AgentListResult>;
   readonly #intervalMs: number;
   readonly #log: (message: string) => void;
   readonly #now: () => number;
@@ -112,10 +117,11 @@ export class AgentMonitor implements AgentFeed {
 
   async poll(): Promise<AgentSnapshot> {
     let agents = this.#snapshot?.agents ?? [];
-    let error: string | null = null;
+    let error: string | null;
     try {
       const result = await this.#list();
       agents = result.agents;
+      error = result.error ?? null;
       this.#logSkipped(result.skipped);
     } catch (caught) {
       error = caught instanceof Error ? caught.message : String(caught);

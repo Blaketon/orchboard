@@ -5,8 +5,11 @@ import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import type { Agent } from '../../shared/api.ts';
 import { HttpError } from '../http-error.ts';
-import { createClaudeActions, defaultName } from './claude-actions.ts';
+import { createClaudeActions } from './claude-actions.ts';
 import { ClaudeCliMissingError, type RunClaude, type RunClaudeOptions } from './claude-cli.ts';
+import { parseTaskRequest } from './task-request.ts';
+
+const task = (request: object) => parseTaskRequest(request);
 
 function recorder(output = '') {
   const calls: { args: readonly string[]; options: RunClaudeOptions | undefined }[] = [];
@@ -52,12 +55,14 @@ describe('claude actions', () => {
   describe('start', () => {
     it('starts a background agent in the project folder and returns its id', async () => {
       const { calls, run } = recorder('Started background session 9f8e7d6c\n');
-      const result = await createClaudeActions(run).start({
-        cwd: project,
-        prompt: '-v flag handling',
-        name: 'Flags',
-        permissionMode: 'acceptEdits',
-      });
+      const result = await createClaudeActions(run).start(
+        task({
+          cwd: project,
+          prompt: '-v flag handling',
+          name: 'Flags',
+          permissionMode: 'acceptEdits',
+        }),
+      );
 
       assert.deepEqual(result, { id: '9f8e7d6c' });
       assert.deepEqual(calls, [
@@ -84,12 +89,14 @@ describe('claude actions', () => {
         paths: (ids: readonly string[]) =>
           Promise.resolve(ids.map((item) => `/data/attachments/${item}`)),
       };
-      await createClaudeActions(run, attachments).start({
-        cwd: project,
-        prompt: 'What is wrong in this screenshot?',
-        name: 'Screenshot',
-        images: [id],
-      });
+      await createClaudeActions(run, attachments).start(
+        task({
+          cwd: project,
+          prompt: 'What is wrong in this screenshot?',
+          name: 'Screenshot',
+          images: [id],
+        }),
+      );
       assert.deepEqual(calls[0]?.args, [
         '--bg',
         '--name',
@@ -97,47 +104,19 @@ describe('claude actions', () => {
         '--add-dir',
         '/data/attachments',
         '--',
-        `What is wrong in this screenshot?
-
-Attached image (open with the Read tool):
-- /data/attachments/${id}`,
+        [
+          'What is wrong in this screenshot?',
+          '',
+          'Attached image (open with the Read tool):',
+          `- /data/attachments/${id}`,
+        ].join('\n'),
       ]);
-
-      await rejectsWithStatus(
-        createClaudeActions(run, attachments).start({
-          cwd: project,
-          prompt: 'x',
-          images: ['../../etc/passwd'],
-        }),
-        400,
-      );
     });
 
-    it("names the task after the prompt's first line when no name is given", async () => {
+    it('checks that the project folder exists before running anything', async () => {
       const { calls, run } = recorder();
-      await createClaudeActions(run).start({
-        cwd: project,
-        prompt: '\n  Fix   the login bug\nmore',
-      });
-      assert.deepEqual(calls[0]?.args.slice(0, 3), ['--bg', '--name', 'Fix the login bug']);
-    });
-
-    it('rejects invalid requests before running anything', async () => {
-      const { calls, run } = recorder();
-      const actions = createClaudeActions(run);
       await rejectsWithStatus(
-        actions.start({ cwd: 'relative/path', prompt: 'x' }),
-        400,
-        /absolute/,
-      );
-      await rejectsWithStatus(actions.start({ cwd: project, prompt: '   ' }), 400, /prompt/);
-      await rejectsWithStatus(
-        actions.start({ cwd: project, prompt: 'x', permissionMode: 'yolo' }),
-        400,
-        /permission mode/,
-      );
-      await rejectsWithStatus(
-        actions.start({ cwd: path.join(project, 'missing'), prompt: 'x' }),
+        createClaudeActions(run).start(task({ cwd: path.join(project, 'missing'), prompt: 'x' })),
         400,
         /Folder not found/,
       );
@@ -146,15 +125,16 @@ Attached image (open with the Read tool):
 
     it('reports CLI problems with clear statuses', async () => {
       await rejectsWithStatus(
-        createClaudeActions(() => Promise.reject(new ClaudeCliMissingError())).start({
-          cwd: project,
-          prompt: 'x',
-        }),
+        createClaudeActions(() => Promise.reject(new ClaudeCliMissingError())).start(
+          task({ cwd: project, prompt: 'x' }),
+        ),
         503,
       );
       const failure = Object.assign(new Error('exit 1'), { stderr: 'Not logged in\n' });
       await rejectsWithStatus(
-        createClaudeActions(() => Promise.reject(failure)).start({ cwd: project, prompt: 'x' }),
+        createClaudeActions(() => Promise.reject(failure)).start(
+          task({ cwd: project, prompt: 'x' }),
+        ),
         502,
         /Not logged in/,
       );
@@ -219,13 +199,5 @@ describe('remove', () => {
       createClaudeActions(recorder().run).remove({ ...finished, state: 'working', pid: 7 }),
       409,
     );
-  });
-});
-
-describe('defaultName', () => {
-  it('shortens long first lines', () => {
-    const name = defaultName('a'.repeat(100));
-    assert.equal(name.length, 60);
-    assert.ok(name.endsWith('…'));
   });
 });

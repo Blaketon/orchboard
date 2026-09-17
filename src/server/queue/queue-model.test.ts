@@ -91,6 +91,7 @@ describe('queued tasks', () => {
       id: 'task',
       columnId: 'col',
       name: 'Add dark mode',
+      provider: 'claude',
       cwd: PROJECT,
       prompt: 'Add dark mode\nDetails…',
       permissionMode: 'manual',

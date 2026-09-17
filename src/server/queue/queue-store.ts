@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import type { QueueState, StartTaskResponse } from '../../shared/api.ts';
-import type { ClaudeActions } from '../agents/claude-actions.ts';
+import type { AgentActions } from '../agents/agent-actions.ts';
 import { JsonStore } from '../storage/json-store.ts';
 import {
   addColumn,
@@ -19,9 +19,9 @@ import {
 /** The task queue, persisted in `queue.json`. */
 export class QueueStore {
   readonly #store: JsonStore<QueueState>;
-  readonly #actions: Pick<ClaudeActions, 'start'>;
+  readonly #actions: Pick<AgentActions, 'start'>;
 
-  constructor(dataDir: string, actions: Pick<ClaudeActions, 'start'>) {
+  constructor(dataDir: string, actions: Pick<AgentActions, 'start'>) {
     this.#store = new JsonStore(path.join(dataDir, 'queue.json'), {
       fallback: () => EMPTY_QUEUE,
       validate: isQueueState,
@@ -61,10 +61,11 @@ export class QueueStore {
     return this.#store.update((state) => removeTask(state, id));
   }
 
-  /** Launches a queued task as a Claude Code agent, then takes it off the queue. */
+  /** Launches a queued task with its agent, then takes it off the queue. */
   async start(id: string): Promise<{ queue: QueueState; started: StartTaskResponse }> {
     const task = findTask(await this.#store.read(), id);
     const started = await this.#actions.start({
+      provider: task.provider ?? 'claude',
       cwd: task.cwd,
       prompt: task.prompt,
       name: task.name,

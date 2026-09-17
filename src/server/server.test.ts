@@ -7,7 +7,7 @@ import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import type { QueueState } from '../shared/api.ts';
 import { AgentMonitor, type AgentSnapshot } from './agents/agent-monitor.ts';
-import type { ClaudeActions } from './agents/claude-actions.ts';
+import type { AgentActions } from './agents/agent-actions.ts';
 import type { Agent } from './agents/claude-agents.ts';
 import { HttpError } from './http-error.ts';
 import { QueueStore } from './queue/queue-store.ts';
@@ -45,7 +45,7 @@ describe('server', () => {
   };
   const queueDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orchboard-server-queue-'));
   const actionCalls: unknown[][] = [];
-  const actions: ClaudeActions = {
+  const actions: AgentActions = {
     start: (request) => {
       actionCalls.push(['start', request]);
       return Promise.resolve({ id: 'new12345' });
@@ -60,6 +60,10 @@ describe('server', () => {
     },
     remove: (target) => {
       actionCalls.push(['remove', target.id]);
+      return Promise.resolve();
+    },
+    decide: (target, approvalId, request) => {
+      actionCalls.push(['decide', target.id, approvalId, request]);
       return Promise.resolve();
     },
   };
@@ -199,6 +203,10 @@ describe('server', () => {
 
     assert.equal((await postJson('/api/agents/a/terminal', {})).status, 202);
     assert.deepEqual(actionCalls.at(-1), ['terminal', 'a']);
+
+    const decided = await postJson('/api/agents/a/approvals/7', { decision: 'accept' });
+    assert.equal(decided.status, 202);
+    assert.deepEqual(actionCalls.at(-1), ['decide', 'a', '7', { decision: 'accept' }]);
   });
 
   it('manages queue columns and tasks through the API', async () => {

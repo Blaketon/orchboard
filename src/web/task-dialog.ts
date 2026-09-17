@@ -217,7 +217,7 @@ export function createTaskDialog(options: {
           cwd: task.cwd,
           name: task.name,
           prompt: task.prompt,
-          mode: task.permissionMode,
+          mode: isPermissionMode(task.permissionMode) ? task.permissionMode : storedMode(),
           images: task.images ?? [],
         },
       );

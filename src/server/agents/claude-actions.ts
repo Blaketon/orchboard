@@ -1,21 +1,13 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import type { Agent, StartTaskRequest, StartTaskResponse } from '../../shared/api.ts';
-import { isPermissionMode } from '../../shared/permission-modes.ts';
-import {
-  describeAttachments,
-  parseAttachmentIds,
-  type AttachmentStore,
-} from '../attachments/attachment-store.ts';
+import type { Agent, StartTaskResponse } from '../../shared/api.ts';
+import { describeAttachments, type AttachmentStore } from '../attachments/attachment-store.ts';
 import { HttpError, isRecord } from '../http-error.ts';
 import { cliErrorMessage, ClaudeCliMissingError, runClaude, type RunClaude } from './claude-cli.ts';
+import { assertDirectory, parsePrompt, type TaskRequest } from './task-request.ts';
 
-export const MAX_PROMPT_CHARS = 100_000;
-export const MAX_NAME_CHARS = 120;
 const AGENT_ID = /^[A-Za-z0-9_-]+$/;
 
 export interface ClaudeActions {
-  start(request: unknown): Promise<StartTaskResponse>;
+  start(task: TaskRequest): Promise<StartTaskResponse>;
   reply(agent: Agent, request: unknown): Promise<void>;
   stop(agent: Agent): Promise<void>;
   remove(agent: Agent): Promise<void>;
@@ -39,8 +31,7 @@ export function createClaudeActions(
   }
 
   return {
-    async start(request) {
-      const { cwd, prompt, name, permissionMode, images } = parseStartRequest(request);
+    async start({ cwd, prompt, name, permissionMode, images }) {
       await assertDirectory(cwd);
       const args = ['--bg', '--name', name];
       if (permissionMode) args.push('--permission-mode', permissionMode);
@@ -86,61 +77,4 @@ export function createClaudeActions(
       await runOrFail(['rm', agent.id], { fixedArgs: true });
     },
   };
-}
-
-function parseStartRequest(
-  request: unknown,
-): Required<Omit<StartTaskRequest, 'permissionMode'>> & Pick<StartTaskRequest, 'permissionMode'> {
-  if (!isRecord(request)) throw new HttpError(400, 'Expected a JSON object.');
-  const { cwd, name, permissionMode } = request;
-
-  if (typeof cwd !== 'string' || !path.isAbsolute(cwd.trim())) {
-    throw new HttpError(400, 'Choose a project folder (an absolute path).');
-  }
-  const prompt = parsePrompt(request.prompt);
-
-  let taskName = typeof name === 'string' ? name.trim() : '';
-  if (taskName.length > MAX_NAME_CHARS) {
-    throw new HttpError(400, `Task names can be at most ${MAX_NAME_CHARS} characters.`);
-  }
-  taskName ||= defaultName(prompt);
-
-  if (permissionMode !== undefined && !isPermissionMode(permissionMode)) {
-    throw new HttpError(400, 'Unknown permission mode.');
-  }
-  return {
-    cwd: cwd.trim(),
-    prompt,
-    name: taskName,
-    images: parseAttachmentIds(request.images),
-    ...(permissionMode === undefined ? {} : { permissionMode }),
-  };
-}
-
-function parsePrompt(value: unknown): string {
-  const prompt = typeof value === 'string' ? value.trim() : '';
-  if (!prompt) throw new HttpError(400, 'Write a prompt for the agent.');
-  if (prompt.length > MAX_PROMPT_CHARS) {
-    throw new HttpError(
-      400,
-      `Prompts can be at most ${MAX_PROMPT_CHARS.toLocaleString('en')} characters.`,
-    );
-  }
-  return prompt;
-}
-
-/** The prompt's first line, shortened, so every task gets a readable name. */
-export function defaultName(prompt: string): string {
-  const firstLine = prompt.split('\n').find((line) => line.trim()) ?? prompt;
-  const collapsed = firstLine.replace(/\s+/g, ' ').trim();
-  return collapsed.length > 60 ? `${collapsed.slice(0, 59)}…` : collapsed;
-}
-
-async function assertDirectory(dir: string): Promise<void> {
-  try {
-    if ((await fs.stat(dir)).isDirectory()) return;
-  } catch {
-    // Fall through to the error below.
-  }
-  throw new HttpError(400, `Folder not found: ${dir}`);
 }

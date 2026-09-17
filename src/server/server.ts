@@ -1,7 +1,7 @@
 import http from 'node:http';
-import type { Agent, Skill } from '../shared/api.ts';
+import type { Agent, Skill, Transcript } from '../shared/api.ts';
+import type { AgentActions } from './agents/agent-actions.ts';
 import type { AgentFeed, AgentSnapshot } from './agents/agent-monitor.ts';
-import type { ClaudeActions } from './agents/claude-actions.ts';
 import { MAX_IMAGE_BYTES, type AttachmentStore } from './attachments/attachment-store.ts';
 import { HttpError, readBody, readJsonBody } from './http-error.ts';
 import type { ProjectDocs } from './projects/project-docs.ts';
@@ -9,14 +9,13 @@ import type { ProjectsStore } from './projects/projects-store.ts';
 import type { QueueStore } from './queue/queue-store.ts';
 import { isLoopbackHost, isTrustedRequest } from './security.ts';
 import { serveStatic, type StaticRoots } from './static-files.ts';
-import type { TranscriptSource } from './transcripts/transcript-reader.ts';
 import type { UsageService } from './usage/usage-service.ts';
 
 export interface ServerOptions {
   readonly host: string;
   readonly agents: AgentFeed;
-  readonly transcripts: TranscriptSource;
-  readonly actions: ClaudeActions;
+  readonly transcripts: { read(agent: Agent): Promise<Transcript> };
+  readonly actions: AgentActions;
   readonly projects: Pick<ProjectsStore, 'list' | 'save' | 'remove'>;
   readonly projectDocs: Pick<ProjectDocs, 'read' | 'save'>;
   readonly skills: () => Promise<Skill[]>;
@@ -256,6 +255,16 @@ export function createServer(options: ServerOptions): http.Server {
       handler: async (req, res, params) => {
         const agent = await findAgent(params.id);
         await options.actions.reply(agent, await readJsonBody(req));
+        options.agents.refresh();
+        sendJson(res, 202, { ok: true });
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/agents/:id/approvals/:approvalId',
+      handler: async (req, res, params) => {
+        const agent = await findAgent(params.id);
+        await options.actions.decide(agent, params.approvalId ?? '', await readJsonBody(req));
         options.agents.refresh();
         sendJson(res, 202, { ok: true });
       },

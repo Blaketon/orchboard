@@ -55,6 +55,11 @@ export class AppServerClient {
   #buffer = '';
   #stderr = '';
   #exited = false;
+  #resolveExit: () => void = () => undefined;
+  /** Resolves once the process has ended and `onExit` has run. */
+  readonly whenExited = new Promise<void>((resolve) => {
+    this.#resolveExit = resolve;
+  });
 
   constructor(process: AppServerProcess, handlers: AppServerHandlers) {
     this.#process = process;
@@ -174,7 +179,11 @@ export class AppServerClient {
     const reason = stderr || `Codex exited${code === null ? '' : ` with code ${code}`}.`;
     for (const pending of this.#pending.values()) pending.reject(new AppServerError(reason));
     this.#pending.clear();
-    this.#handlers.onExit(code, stderr);
+    try {
+      this.#handlers.onExit(code, stderr);
+    } finally {
+      this.#resolveExit();
+    }
   }
 }
 
