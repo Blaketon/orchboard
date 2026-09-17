@@ -1,5 +1,5 @@
 import http from 'node:http';
-import type { ClaudeAgent, Skill } from '../shared/api.ts';
+import type { Agent, Skill } from '../shared/api.ts';
 import type { AgentFeed, AgentSnapshot } from './agents/agent-monitor.ts';
 import type { ClaudeActions } from './agents/claude-actions.ts';
 import { MAX_IMAGE_BYTES, type AttachmentStore } from './attachments/attachment-store.ts';
@@ -34,7 +34,7 @@ export interface ServerOptions {
     | 'start'
   >;
   readonly usage: Pick<UsageService, 'report'>;
-  readonly openTerminal: (agent: ClaudeAgent) => Promise<void>;
+  readonly openTerminal: (agent: Agent) => Promise<void>;
   /** Where the web app's files live. Without it, only the API is served. */
   readonly staticRoots?: StaticRoots;
   /** How often idle event streams send a comment so proxies don't drop them. */
@@ -59,7 +59,7 @@ export function createServer(options: ServerOptions): http.Server {
   const trust = { allowAnyHost: !isLoopbackHost(options.host) };
   const keepAliveMs = options.keepAliveMs ?? 25_000;
 
-  const findAgent = async (id: string | undefined): Promise<ClaudeAgent> => {
+  const findAgent = async (id: string | undefined): Promise<Agent> => {
     const snapshot = options.agents.current() ?? (await options.agents.ready());
     const agent = snapshot.agents.find((candidate) => candidate.id === id);
     if (!agent) throw new HttpError(404, 'Agent not found');

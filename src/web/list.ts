@@ -1,15 +1,15 @@
-import type { ClaudeAgent } from '../shared/api.ts';
+import type { Agent } from '../shared/api.ts';
 import { projectKey, projectLabel } from './agents.ts';
 import { el } from './dom.ts';
 import { formatAge } from './format.ts';
 
-export const STATE_LABELS: Readonly<Record<ClaudeAgent['state'], string>> = {
+export const STATE_LABELS: Readonly<Record<Agent['state'], string>> = {
   blocked: 'Awaiting input',
   working: 'Working',
   done: 'Completed',
 };
 
-const STATE_ORDER: Readonly<Record<ClaudeAgent['state'], number>> = {
+const STATE_ORDER: Readonly<Record<Agent['state'], number>> = {
   working: 0,
   blocked: 1,
   done: 2,
@@ -18,11 +18,11 @@ const STATE_ORDER: Readonly<Record<ClaudeAgent['state'], number>> = {
 export interface ListOptions {
   readonly now: number;
   readonly emptyText: string;
-  readonly onOpen: (agent: ClaudeAgent) => void;
+  readonly onOpen: (agent: Agent) => void;
 }
 
 /** Sorts running agents first, then those awaiting input, then completed; newest first within each. */
-export function sortForList(agents: readonly ClaudeAgent[]): ClaudeAgent[] {
+export function sortForList(agents: readonly Agent[]): Agent[] {
   return [...agents].sort(
     (a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || b.startedAt - a.startedAt,
   );
@@ -30,7 +30,7 @@ export function sortForList(agents: readonly ClaudeAgent[]): ClaudeAgent[] {
 
 export function renderList(
   container: HTMLElement,
-  agents: readonly ClaudeAgent[],
+  agents: readonly Agent[],
   options: ListOptions,
 ): void {
   const rows = sortForList(agents).map((agent) =>

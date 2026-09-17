@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { ClaudeAgent } from '../shared/api.ts';
+import type { Agent } from '../shared/api.ts';
 import { sortForList } from './list.ts';
 
-const agent = (id: string, state: ClaudeAgent['state'], startedAt: number): ClaudeAgent => ({
+const agent = (id: string, state: Agent['state'], startedAt: number): Agent => ({
   id,
+  provider: 'claude',
   sessionId: id,
   name: id,
   cwd: '/work',

@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import type { ClaudeAgent } from '../../shared/api.ts';
+import type { Agent } from '../../shared/api.ts';
 import { HttpError } from '../http-error.ts';
 
 const AGENT_ID = /^[A-Za-z0-9_-]+$/;
@@ -78,7 +78,7 @@ export const launchTerminal: LaunchTerminal = (command) =>
   });
 
 export async function openAgentTerminal(
-  agent: ClaudeAgent,
+  agent: Agent,
   launch: LaunchTerminal = launchTerminal,
   platform: NodeJS.Platform = process.platform,
 ): Promise<void> {

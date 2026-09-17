@@ -44,6 +44,7 @@ describe('parseAgents', () => {
     assert.deepEqual(agents, [
       {
         id: blocked.id,
+        provider: 'claude',
         sessionId: blocked.sessionId,
         name: blocked.name,
         cwd: blocked.cwd,
@@ -53,6 +54,7 @@ describe('parseAgents', () => {
       },
       {
         id: working.id,
+        provider: 'claude',
         sessionId: working.sessionId,
         name: working.name,
         cwd: working.cwd,

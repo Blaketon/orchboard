@@ -1,11 +1,11 @@
-import type { AgentState, ClaudeAgent } from '../shared/api.ts';
+import type { AgentState, Agent } from '../shared/api.ts';
 import type { Settings } from './settings-store.ts';
 import { playChime } from './sound.ts';
 import { showToast } from './toast.ts';
 
 export interface Transitions {
-  readonly done: ClaudeAgent[];
-  readonly blocked: ClaudeAgent[];
+  readonly done: Agent[];
+  readonly blocked: Agent[];
 }
 
 /**
@@ -15,10 +15,10 @@ export interface Transitions {
  */
 export function detectTransitions(
   previous: ReadonlyMap<string, AgentState>,
-  agents: readonly ClaudeAgent[],
+  agents: readonly Agent[],
 ): Transitions {
-  const done: ClaudeAgent[] = [];
-  const blocked: ClaudeAgent[] = [];
+  const done: Agent[] = [];
+  const blocked: Agent[] = [];
   for (const agent of agents) {
     const before = previous.get(agent.id);
     if (before === undefined || before === agent.state) continue;
@@ -29,16 +29,16 @@ export function detectTransitions(
 }
 
 export interface Notifier {
-  handle(agents: readonly ClaudeAgent[]): void;
+  handle(agents: readonly Agent[]): void;
 }
 
 export function createNotifier(options: {
   readonly settings: () => Settings;
-  readonly onOpen: (agent: ClaudeAgent) => void;
+  readonly onOpen: (agent: Agent) => void;
 }): Notifier {
   let previous: Map<string, AgentState> | undefined;
 
-  const notify = (agent: ClaudeAgent, title: string, settings: Settings) => {
+  const notify = (agent: Agent, title: string, settings: Settings) => {
     const durationMs = settings.toastSeconds * 1000;
     showToast(`${title}: ${agent.name || agent.id}`, title === 'Completed' ? 'success' : 'info', {
       durationMs,

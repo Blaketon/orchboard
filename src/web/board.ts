@@ -1,4 +1,4 @@
-import type { ClaudeAgent } from '../shared/api.ts';
+import type { Agent } from '../shared/api.ts';
 import { BOARD_COLUMNS, groupByState, projectKey, projectLabel, type Project } from './agents.ts';
 import { el } from './dom.ts';
 import { formatAge } from './format.ts';
@@ -6,16 +6,16 @@ import { formatAge } from './format.ts';
 export interface BoardOptions {
   readonly now: number;
   readonly emptyText: string;
-  readonly onOpen: (agent: ClaudeAgent) => void;
+  readonly onOpen: (agent: Agent) => void;
   /** Extra columns after the status columns, e.g. the selected project's queue. */
   readonly extraColumns?: readonly HTMLElement[];
   /** Hides every completed agent currently shown. */
-  readonly onClearCompleted?: (agents: readonly ClaudeAgent[]) => void;
+  readonly onClearCompleted?: (agents: readonly Agent[]) => void;
 }
 
 export function renderBoard(
   container: HTMLElement,
-  agents: readonly ClaudeAgent[],
+  agents: readonly Agent[],
   options: BoardOptions,
 ): void {
   // Re-rendering replaces the cards; keep keyboard focus on the same agent.
@@ -66,7 +66,7 @@ export function renderBoard(
   }
 }
 
-function card(agent: ClaudeAgent, options: BoardOptions): HTMLButtonElement {
+function card(agent: Agent, options: BoardOptions): HTMLButtonElement {
   return el(
     'button',
     {

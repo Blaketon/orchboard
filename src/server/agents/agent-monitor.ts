@@ -1,4 +1,4 @@
-import type { AgentSnapshot, ClaudeAgent } from '../../shared/api.ts';
+import type { AgentSnapshot, Agent } from '../../shared/api.ts';
 import type { ParseResult } from './claude-agents.ts';
 
 export type { AgentSnapshot };
@@ -124,7 +124,7 @@ export class AgentMonitor implements AgentFeed {
     return this.#publish(agents, error);
   }
 
-  #publish(agents: readonly ClaudeAgent[], error: string | null): AgentSnapshot {
+  #publish(agents: readonly Agent[], error: string | null): AgentSnapshot {
     const signature = JSON.stringify({ agents, error });
     const previous = this.#snapshot;
     if (previous !== undefined && signature === this.#signature) return previous;

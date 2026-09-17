@@ -2,11 +2,12 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { AgentMonitor, type AgentSnapshot } from './agent-monitor.ts';
-import type { ClaudeAgent, ParseResult } from './claude-agents.ts';
+import type { Agent, ParseResult } from './claude-agents.ts';
 
-function agent(id: string, state: ClaudeAgent['state'] = 'working'): ClaudeAgent {
+function agent(id: string, state: Agent['state'] = 'working'): Agent {
   return {
     id,
+    provider: 'claude',
     sessionId: `${id}-session`,
     name: `Task ${id}`,
     cwd: '/work',

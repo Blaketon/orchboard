@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { ClaudeAgent } from '../shared/api.ts';
+import type { Agent } from '../shared/api.ts';
 import { filterAgents, groupByState, listProjects, projectKey, projectLabel } from './agents.ts';
 
-function agent(overrides: Partial<ClaudeAgent>): ClaudeAgent {
+function agent(overrides: Partial<Agent>): Agent {
   return {
     id: 'a',
+    provider: 'claude',
     sessionId: 's',
     name: 'Task',
     cwd: '/work/acme/storefront',

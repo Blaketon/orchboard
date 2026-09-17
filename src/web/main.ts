@@ -1,4 +1,4 @@
-import type { AgentSnapshot, ClaudeAgent, QueueState, SavedProjectView } from '../shared/api.ts';
+import type { AgentSnapshot, Agent, QueueState, SavedProjectView } from '../shared/api.ts';
 import { filterAgents, listProjects, type Project } from './agents.ts';
 import { errorMessage, requestJson } from './api.ts';
 import { renderBoard, renderProjects } from './board.ts';
@@ -333,7 +333,7 @@ function render(): void {
   const common = {
     now: Date.now(),
     emptyText: query ? 'No matches' : 'Nothing here',
-    onOpen: (agent: ClaudeAgent) => {
+    onOpen: (agent: Agent) => {
       detail.open(agent);
     },
   };

@@ -1,4 +1,4 @@
-import type { AgentState, ClaudeAgent, SavedProject } from '../shared/api.ts';
+import type { AgentState, Agent, SavedProject } from '../shared/api.ts';
 import { projectKey, projectLabel } from '../shared/projects.ts';
 
 export { projectKey, projectLabel };
@@ -21,7 +21,7 @@ export const BOARD_COLUMNS: readonly { readonly state: AgentState; readonly titl
 
 /** Projects from the agents on the board plus the ones the user saved, even without agents. */
 export function listProjects(
-  agents: readonly ClaudeAgent[],
+  agents: readonly Agent[],
   saved: readonly SavedProject[] = [],
 ): Project[] {
   const counts = new Map<string, number>();
@@ -60,7 +60,7 @@ export interface AgentFilter {
   readonly query: string;
 }
 
-export function filterAgents(agents: readonly ClaudeAgent[], filter: AgentFilter): ClaudeAgent[] {
+export function filterAgents(agents: readonly Agent[], filter: AgentFilter): Agent[] {
   const query = filter.query.trim().toLowerCase();
   return agents.filter((agent) => {
     const key = projectKey(agent.cwd);
@@ -72,8 +72,8 @@ export function filterAgents(agents: readonly ClaudeAgent[], filter: AgentFilter
 }
 
 /** Buckets agents by state, newest first within each bucket. */
-export function groupByState(agents: readonly ClaudeAgent[]): Record<AgentState, ClaudeAgent[]> {
-  const groups: Record<AgentState, ClaudeAgent[]> = { blocked: [], working: [], done: [] };
+export function groupByState(agents: readonly Agent[]): Record<AgentState, Agent[]> {
+  const groups: Record<AgentState, Agent[]> = { blocked: [], working: [], done: [] };
   for (const agent of agents) groups[agent.state].push(agent);
   for (const group of Object.values(groups)) group.sort((a, b) => b.startedAt - a.startedAt);
   return groups;

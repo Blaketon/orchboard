@@ -1,4 +1,4 @@
-import type { ClaudeAgent, SessionUsage, Transcript, TranscriptPart } from '../shared/api.ts';
+import type { Agent, SessionUsage, Transcript, TranscriptPart } from '../shared/api.ts';
 import { projectKey, projectLabel } from './agents.ts';
 import { postJson, requestJson } from './api.ts';
 import { confirmDialog } from './dialogs.ts';
@@ -8,21 +8,21 @@ import { renderMarkdown } from './markdown.ts';
 import { showToast } from './toast.ts';
 
 const REFRESH_MS = 3000;
-const STATE_LABELS: Readonly<Record<ClaudeAgent['state'], string>> = {
+const STATE_LABELS: Readonly<Record<Agent['state'], string>> = {
   blocked: 'Awaiting input',
   working: 'Working',
   done: 'Completed',
 };
 
 export interface DetailPanel {
-  open(agent: ClaudeAgent): void;
+  open(agent: Agent): void;
   /** Keeps the open agent's header in sync with the latest snapshot. */
-  update(agents: readonly ClaudeAgent[]): void;
+  update(agents: readonly Agent[]): void;
 }
 
 /** A side panel showing one agent's live transcript and usage, refreshed while open. */
 export function createDetailPanel(options: {
-  readonly onHide: (agent: ClaudeAgent) => void;
+  readonly onHide: (agent: Agent) => void;
 }): DetailPanel {
   const title = el('h2', { className: 'detail-title', attrs: { id: 'detail-title' } });
   const meta = el('p', { className: 'detail-meta' });
@@ -84,7 +84,7 @@ export function createDetailPanel(options: {
   );
   document.body.append(dialog);
 
-  let current: ClaudeAgent | undefined;
+  let current: Agent | undefined;
   let lastBody = '';
   let timer: number | undefined;
 
@@ -173,7 +173,7 @@ export function createDetailPanel(options: {
     current = undefined;
   });
 
-  function renderHeader(agent: ClaudeAgent): void {
+  function renderHeader(agent: Agent): void {
     title.textContent = agent.name || agent.id;
     meta.replaceChildren(
       el('span', {

@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { ClaudeAgent, StartTaskRequest, StartTaskResponse } from '../../shared/api.ts';
+import type { Agent, StartTaskRequest, StartTaskResponse } from '../../shared/api.ts';
 import { isPermissionMode } from '../../shared/permission-modes.ts';
 import {
   describeAttachments,
@@ -16,9 +16,9 @@ const AGENT_ID = /^[A-Za-z0-9_-]+$/;
 
 export interface ClaudeActions {
   start(request: unknown): Promise<StartTaskResponse>;
-  reply(agent: ClaudeAgent, request: unknown): Promise<void>;
-  stop(agent: ClaudeAgent): Promise<void>;
-  remove(agent: ClaudeAgent): Promise<void>;
+  reply(agent: Agent, request: unknown): Promise<void>;
+  stop(agent: Agent): Promise<void>;
+  remove(agent: Agent): Promise<void>;
 }
 
 /** Starts, continues, and stops Claude Code background agents through the `claude` CLI. */

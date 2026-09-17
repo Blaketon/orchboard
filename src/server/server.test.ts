@@ -8,7 +8,7 @@ import { after, before, describe, it } from 'node:test';
 import type { QueueState } from '../shared/api.ts';
 import { AgentMonitor, type AgentSnapshot } from './agents/agent-monitor.ts';
 import type { ClaudeActions } from './agents/claude-actions.ts';
-import type { ClaudeAgent } from './agents/claude-agents.ts';
+import type { Agent } from './agents/claude-agents.ts';
 import { HttpError } from './http-error.ts';
 import { QueueStore } from './queue/queue-store.ts';
 import { createServer } from './server.ts';
@@ -19,9 +19,10 @@ interface JsonResponse {
   body: unknown;
 }
 
-function agent(id: string, state: ClaudeAgent['state']): ClaudeAgent {
+function agent(id: string, state: Agent['state']): Agent {
   return {
     id,
+    provider: 'claude',
     sessionId: `${id}-session`,
     name: `Task ${id}`,
     cwd: '/work',
@@ -32,7 +33,7 @@ function agent(id: string, state: ClaudeAgent['state']): ClaudeAgent {
 }
 
 describe('server', () => {
-  let agents: ClaudeAgent[] = [agent('a', 'working')];
+  let agents: Agent[] = [agent('a', 'working')];
   const monitor = new AgentMonitor({
     list: () => Promise.resolve({ agents, skipped: [] }),
     log: () => undefined,

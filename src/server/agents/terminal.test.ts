@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { ClaudeAgent } from '../../shared/api.ts';
+import type { Agent } from '../../shared/api.ts';
 import { HttpError } from '../http-error.ts';
 import { openAgentTerminal, terminalCommand, type TerminalCommand } from './terminal.ts';
 
@@ -48,8 +48,9 @@ describe('terminalCommand', () => {
 });
 
 describe('openAgentTerminal', () => {
-  const agent: ClaudeAgent = {
+  const agent: Agent = {
     id: '1a2b3c4d',
+    provider: 'claude',
     sessionId: 's',
     name: 'Task',
     cwd: '/work',

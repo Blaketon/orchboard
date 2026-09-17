@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
-import type { ClaudeAgent } from '../../shared/api.ts';
+import type { Agent } from '../../shared/api.ts';
 import { HttpError } from '../http-error.ts';
 import { createClaudeActions, defaultName } from './claude-actions.ts';
 import { ClaudeCliMissingError, type RunClaude, type RunClaudeOptions } from './claude-cli.ts';
@@ -37,8 +37,9 @@ describe('claude actions', () => {
     await fs.rm(project, { recursive: true, force: true });
   });
 
-  const agent = (overrides: Partial<ClaudeAgent> = {}): ClaudeAgent => ({
+  const agent = (overrides: Partial<Agent> = {}): Agent => ({
     id: '1a2b3c4d',
+    provider: 'claude',
     sessionId: '0f8e2c4a-1b3d-4e5f-8a9b-0c1d2e3f4a5b',
     name: 'Fix tests',
     cwd: project,
@@ -196,8 +197,9 @@ Attached image (open with the Read tool):
 });
 
 describe('remove', () => {
-  const finished: ClaudeAgent = {
+  const finished: Agent = {
     id: '1a2b3c4d',
+    provider: 'claude',
     sessionId: 's',
     name: 'Done',
     cwd: '/work',

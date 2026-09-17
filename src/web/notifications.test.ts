@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AgentState, ClaudeAgent } from '../shared/api.ts';
+import type { AgentState, Agent } from '../shared/api.ts';
 import { detectTransitions } from './notifications.ts';
 
-const agent = (id: string, state: AgentState): ClaudeAgent => ({
+const agent = (id: string, state: AgentState): Agent => ({
   id,
+  provider: 'claude',
   sessionId: id,
   name: id,
   cwd: '/work',

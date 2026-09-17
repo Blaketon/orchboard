@@ -1,13 +1,13 @@
-import type { AgentState, ClaudeAgent } from '../../shared/api.ts';
+import type { AgentState, Agent } from '../../shared/api.ts';
 import { ClaudeCliMissingError, errorCode, runClaude, type RunClaude } from './claude-cli.ts';
 
-export type { AgentState, ClaudeAgent };
+export type { AgentState, Agent };
 export { ClaudeCliMissingError };
 
 export const AGENT_STATES: readonly AgentState[] = ['working', 'blocked', 'done'];
 
 export interface ParseResult {
-  readonly agents: ClaudeAgent[];
+  readonly agents: Agent[];
   /** Why entries were skipped, e.g. an unrecognized state from a newer Claude Code. */
   readonly skipped: string[];
 }
@@ -52,7 +52,7 @@ export function parseAgents(output: string): ParseResult {
     throw new Error('`claude agents --json` did not return a list.');
   }
 
-  const agents: ClaudeAgent[] = [];
+  const agents: Agent[] = [];
   const skipped: string[] = [];
   data.forEach((entry: unknown, index) => {
     if (!isRecord(entry)) {
@@ -79,6 +79,7 @@ export function parseAgents(output: string): ParseResult {
     }
     agents.push({
       id,
+      provider: 'claude',
       sessionId,
       name,
       cwd,

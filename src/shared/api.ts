@@ -5,6 +5,9 @@ import type { PermissionMode } from './permission-modes.ts';
 
 export type AgentState = 'working' | 'blocked' | 'done';
 
+/** Which coding agent runs a task. */
+export type AgentProvider = 'claude' | 'codex';
+
 /** `POST /api/tasks`. */
 export interface StartTaskRequest {
   /** Absolute path of the project folder to run the agent in. */
@@ -91,9 +94,14 @@ export interface QueueState {
   readonly tasks: readonly QueuedTask[];
 }
 
-/** A Claude Code background agent, as reported by `claude agents --json --all`. */
-export interface ClaudeAgent {
+/**
+ * A coding agent on the board: a Claude Code background agent from `claude agents --json --all`,
+ * or a Codex task that Orchboard runs.
+ */
+export interface Agent {
   readonly id: string;
+  readonly provider: AgentProvider;
+  /** Claude Code session id, or Codex thread id. */
   readonly sessionId: string;
   readonly name: string;
   readonly cwd: string;
@@ -105,7 +113,7 @@ export interface ClaudeAgent {
 
 /** `GET /api/agents` and each `agents` event on `GET /api/events`. */
 export interface AgentSnapshot {
-  readonly agents: readonly ClaudeAgent[];
+  readonly agents: readonly Agent[];
   /** Why the latest poll failed, or null. Agents from the last successful poll are kept. */
   readonly error: string | null;
   /** When the agents or error last changed. */
