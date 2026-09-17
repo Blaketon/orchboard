@@ -69,6 +69,7 @@ export class QueueStore {
       prompt: task.prompt,
       name: task.name,
       permissionMode: task.permissionMode,
+      images: task.images ?? [],
     });
     // Tolerate the task having been removed meanwhile; the agent is already running.
     const queue = await this.#store.update((state) =>

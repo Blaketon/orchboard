@@ -2,7 +2,8 @@ import http from 'node:http';
 import type { ClaudeAgent, Skill } from '../shared/api.ts';
 import type { AgentFeed, AgentSnapshot } from './agents/agent-monitor.ts';
 import type { ClaudeActions } from './agents/claude-actions.ts';
-import { HttpError, readJsonBody } from './http-error.ts';
+import { MAX_IMAGE_BYTES, type AttachmentStore } from './attachments/attachment-store.ts';
+import { HttpError, readBody, readJsonBody } from './http-error.ts';
 import type { ProjectDocs } from './projects/project-docs.ts';
 import type { ProjectsStore } from './projects/projects-store.ts';
 import type { QueueStore } from './queue/queue-store.ts';
@@ -19,6 +20,7 @@ export interface ServerOptions {
   readonly projects: Pick<ProjectsStore, 'list' | 'save' | 'remove'>;
   readonly projectDocs: Pick<ProjectDocs, 'read' | 'save'>;
   readonly skills: () => Promise<Skill[]>;
+  readonly attachments: Pick<AttachmentStore, 'save' | 'read'>;
   readonly queue: Pick<
     QueueStore,
     | 'read'
@@ -212,6 +214,31 @@ export function createServer(options: ServerOptions): http.Server {
         const result = await options.queue.start(params.id ?? '');
         options.agents.refresh();
         sendJson(res, 201, result);
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/attachments',
+      handler: async (req, res) => {
+        // Like the JSON-only API, a non-simple content type keeps other sites from posting here.
+        if (!(req.headers['content-type'] ?? '').toLowerCase().startsWith('image/')) {
+          throw new HttpError(415, 'Expected an image request body.');
+        }
+        sendJson(res, 201, await options.attachments.save(await readBody(req, MAX_IMAGE_BYTES)));
+      },
+    },
+    {
+      method: 'GET',
+      path: '/api/attachments/:id',
+      handler: async (_req, res, params) => {
+        const image = await options.attachments.read(params.id ?? '');
+        res.writeHead(200, {
+          'Content-Type': image.contentType,
+          'Content-Length': image.bytes.length,
+          'Cache-Control': 'private, max-age=86400, immutable',
+          'X-Content-Type-Options': 'nosniff',
+        });
+        res.end(image.bytes);
       },
     },
     {

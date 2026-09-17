@@ -26,6 +26,19 @@ export async function readJsonBody(
     throw new HttpError(415, 'Expected a JSON request body.');
   }
 
+  const body = await readBody(req, maxBytes);
+  try {
+    return JSON.parse(body.toString('utf8')) as unknown;
+  } catch {
+    throw new HttpError(400, 'Request body is not valid JSON.');
+  }
+}
+
+/** Reads a whole request body, failing with 413 once it grows past `maxBytes`. */
+export async function readBody(req: http.IncomingMessage, maxBytes: number): Promise<Buffer> {
+  const declared = Number(req.headers['content-length']);
+  if (declared > maxBytes) throw new HttpError(413, 'Request body is too large.');
+
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
@@ -34,12 +47,7 @@ export async function readJsonBody(
     if (size > maxBytes) throw new HttpError(413, 'Request body is too large.');
     chunks.push(buffer);
   }
-
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
-  } catch {
-    throw new HttpError(400, 'Request body is not valid JSON.');
-  }
+  return Buffer.concat(chunks);
 }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {

@@ -21,6 +21,11 @@ export async function requestJson<T>(
       ? {}
       : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
   });
+  return readResponse<T>(response);
+}
+
+/** Parses a JSON API response, throwing the server's error message when it failed. */
+export async function readResponse<T>(response: Response): Promise<T> {
   const data = (await response.json().catch(() => null)) as unknown;
   if (!response.ok) {
     const message =

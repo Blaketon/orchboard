@@ -6,6 +6,7 @@ import {
   addColumn,
   addTask,
   EMPTY_QUEUE,
+  isQueueState,
   moveTask,
   removeColumn,
   removeTask,
@@ -93,6 +94,7 @@ describe('queued tasks', () => {
       cwd: PROJECT,
       prompt: 'Add dark mode\nDetails…',
       permissionMode: 'manual',
+      images: [],
       createdAt: 42,
     });
   });
@@ -104,6 +106,27 @@ describe('queued tasks', () => {
     assert.equal(task.name, 'Renamed');
     assert.equal(task.permissionMode, 'plan');
     assert.equal(task.prompt, 'Task b');
+  });
+
+  it('keeps image attachments with a task', () => {
+    const image = '0f8fad5b-d9cb-469f-a165-70867728950e.png';
+    let state = updateTask(sample(), 'a', { images: [image] });
+    assert.deepEqual(state.tasks[0]?.images, [image]);
+    state = updateTask(state, 'a', { name: 'Renamed' });
+    assert.deepEqual(state.tasks[0]?.images, [image]);
+    assert.equal(
+      statusOf(() => updateTask(sample(), 'a', { images: ['../../secret.png'] })),
+      400,
+    );
+  });
+
+  it('loads queues saved before tasks had images', () => {
+    const task = sample().tasks[0];
+    assert.ok(task);
+    const legacy: Record<string, unknown> = { ...task };
+    delete legacy.images;
+    assert.equal(isQueueState({ columns: [], tasks: [legacy] }), true);
+    assert.equal(isQueueState({ columns: [], tasks: [{ ...legacy, images: ['x'] }] }), false);
   });
 
   it('rejects invalid task input', () => {

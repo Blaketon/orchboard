@@ -2,6 +2,11 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { ClaudeAgent, StartTaskRequest, StartTaskResponse } from '../../shared/api.ts';
 import { isPermissionMode } from '../../shared/permission-modes.ts';
+import {
+  describeAttachments,
+  parseAttachmentIds,
+  type AttachmentStore,
+} from '../attachments/attachment-store.ts';
 import { HttpError, isRecord } from '../http-error.ts';
 import { cliErrorMessage, ClaudeCliMissingError, runClaude, type RunClaude } from './claude-cli.ts';
 
@@ -17,7 +22,10 @@ export interface ClaudeActions {
 }
 
 /** Starts, continues, and stops Claude Code background agents through the `claude` CLI. */
-export function createClaudeActions(run: RunClaude = runClaude): ClaudeActions {
+export function createClaudeActions(
+  run: RunClaude = runClaude,
+  attachments?: Pick<AttachmentStore, 'dir' | 'paths'>,
+): ClaudeActions {
   async function runOrFail(
     args: readonly string[],
     options: Parameters<RunClaude>[1],
@@ -32,12 +40,19 @@ export function createClaudeActions(run: RunClaude = runClaude): ClaudeActions {
 
   return {
     async start(request) {
-      const { cwd, prompt, name, permissionMode } = parseStartRequest(request);
+      const { cwd, prompt, name, permissionMode, images } = parseStartRequest(request);
       await assertDirectory(cwd);
       const args = ['--bg', '--name', name];
       if (permissionMode) args.push('--permission-mode', permissionMode);
+      let fullPrompt = prompt;
+      if (images.length) {
+        if (!attachments) throw new HttpError(400, 'Image attachments are not available.');
+        fullPrompt += describeAttachments(await attachments.paths(images));
+        // Lets the agent read the images without asking for access outside the project.
+        args.push('--add-dir', attachments.dir);
+      }
       // `--` ends option parsing, so a prompt starting with "-" isn't read as a flag.
-      const output = await runOrFail([...args, '--', prompt], { cwd });
+      const output = await runOrFail([...args, '--', fullPrompt], { cwd });
       return { id: /\b([0-9a-f]{8})\b/.exec(output)?.[1] ?? null };
     },
 
@@ -97,6 +112,7 @@ function parseStartRequest(
     cwd: cwd.trim(),
     prompt,
     name: taskName,
+    images: parseAttachmentIds(request.images),
     ...(permissionMode === undefined ? {} : { permissionMode }),
   };
 }

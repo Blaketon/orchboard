@@ -3,6 +3,7 @@ import type { QueueColumn, QueuedTask, QueueState } from '../../shared/api.ts';
 import { projectKey } from '../../shared/projects.ts';
 import { DEFAULT_PERMISSION_MODE, isPermissionMode } from '../../shared/permission-modes.ts';
 import { defaultName, MAX_NAME_CHARS, MAX_PROMPT_CHARS } from '../agents/claude-actions.ts';
+import { isAttachmentId, parseAttachmentIds } from '../attachments/attachment-store.ts';
 import { HttpError, isRecord } from '../http-error.ts';
 
 // Pure queue operations: each takes the current state and returns the next one, so they are
@@ -59,6 +60,7 @@ export function addTask(state: QueueState, request: unknown, id: string, now: nu
     cwd: taskCwd(request.cwd, column.project),
     prompt,
     permissionMode: taskMode(request.permissionMode),
+    images: parseAttachmentIds(request.images),
     createdAt: now,
   };
   return { ...state, tasks: [...state.tasks, task] };
@@ -75,6 +77,7 @@ export function updateTask(state: QueueState, id: string, request: unknown): Que
     cwd: request.cwd === undefined ? task.cwd : taskCwd(request.cwd, task.cwd),
     permissionMode:
       request.permissionMode === undefined ? task.permissionMode : taskMode(request.permissionMode),
+    images: request.images === undefined ? (task.images ?? []) : parseAttachmentIds(request.images),
   };
   return { ...state, tasks: state.tasks.map((item) => (item.id === id ? updated : item)) };
 }
@@ -183,6 +186,8 @@ export function isQueueState(value: unknown): value is QueueState {
         typeof task.cwd === 'string' &&
         typeof task.prompt === 'string' &&
         isPermissionMode(task.permissionMode) &&
+        (task.images === undefined ||
+          (Array.isArray(task.images) && task.images.every(isAttachmentId))) &&
         typeof task.createdAt === 'number',
     )
   );

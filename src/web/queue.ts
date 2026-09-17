@@ -93,6 +93,11 @@ function renderTask(task: QueuedTask, handlers: QueueHandlers): HTMLElement {
       el('span', { className: 'card-title', text: task.name }),
       el('span', { className: 'card-meta' }, [
         el('span', { className: 'card-project', text: mode ?? task.permissionMode }),
+        task.images?.length
+          ? el('span', {
+              text: `${task.images.length} image${task.images.length === 1 ? '' : 's'}`,
+            })
+          : null,
       ]),
       el('span', { className: 'queue-card-actions' }, [
         el('button', {

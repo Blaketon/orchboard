@@ -101,6 +101,16 @@ describe('server', () => {
           system: false,
         },
       ]),
+    attachments: {
+      save: (bytes) => {
+        uploads.push(bytes.length);
+        return Promise.resolve({ id: 'img' });
+      },
+      read: (id) =>
+        id === 'known.png'
+          ? Promise.resolve({ bytes: Buffer.from('png-bytes'), contentType: 'image/png' })
+          : Promise.reject(new HttpError(404, 'Attachment not found.')),
+    },
     queue: new QueueStore(queueDir, actions),
     openTerminal: (target) => {
       actionCalls.push(['terminal', target.id]);
@@ -116,6 +126,7 @@ describe('server', () => {
   });
   const removedProjects: string[] = [];
   const savedDocs: unknown[] = [];
+  const uploads: number[] = [];
   let port = 0;
 
   before(async () => {
@@ -248,6 +259,44 @@ describe('server', () => {
     });
     assert.equal(saved.status, 200);
     assert.deepEqual(savedDocs, [body]);
+  });
+
+  it('accepts image uploads and serves them back', async () => {
+    const uploaded = await request('/api/attachments', {
+      method: 'POST',
+      headers: { 'content-type': 'image/png' },
+      body: 'fake image',
+    });
+    assert.deepEqual(uploaded, { status: 201, body: { id: 'img' } });
+    assert.deepEqual(uploads, [10]);
+
+    const notImage = await request('/api/attachments', {
+      method: 'POST',
+      headers: { 'content-type': 'text/plain' },
+      body: 'x',
+    });
+    assert.equal(notImage.status, 415);
+
+    const image = await new Promise<{ status: number; type: string | undefined; body: string }>(
+      (resolve, reject) => {
+        http
+          .get({ host: '127.0.0.1', port, path: '/api/attachments/known.png' }, (res) => {
+            let data = '';
+            res.setEncoding('utf8');
+            res.on('data', (chunk: string) => (data += chunk));
+            res.on('end', () => {
+              resolve({
+                status: res.statusCode ?? 0,
+                type: res.headers['content-type'],
+                body: data,
+              });
+            });
+          })
+          .on('error', reject);
+      },
+    );
+    assert.deepEqual(image, { status: 200, type: 'image/png', body: 'png-bytes' });
+    assert.equal((await request('/api/attachments/other.png')).status, 404);
   });
 
   it('lists skills', async () => {

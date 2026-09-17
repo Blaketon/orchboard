@@ -57,6 +57,7 @@ describe('QueueStore', () => {
         prompt: 'Fix the tests',
         name: 'Fix the tests',
         permissionMode: 'acceptEdits',
+        images: [],
       },
     ]);
     assert.deepEqual(started, { id: 'abcd1234' });

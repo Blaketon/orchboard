@@ -4,6 +4,7 @@ import { AgentMonitor } from './agents/agent-monitor.ts';
 import { createClaudeActions } from './agents/claude-actions.ts';
 import { listClaudeAgents } from './agents/claude-agents.ts';
 import { openAgentTerminal } from './agents/terminal.ts';
+import { AttachmentStore } from './attachments/attachment-store.ts';
 import { loadConfig, type Config } from './config.ts';
 import { ProjectDocs } from './projects/project-docs.ts';
 import { ProjectsStore } from './projects/projects-store.ts';
@@ -23,8 +24,10 @@ try {
 }
 
 const monitor = new AgentMonitor({ list: () => listClaudeAgents() });
-const actions = createClaudeActions();
+const attachments = new AttachmentStore(config.dataDir);
+const actions = createClaudeActions(undefined, attachments);
 const projects = new ProjectsStore(config.dataDir);
+const queue = new QueueStore(config.dataDir, actions);
 const server = createServer({
   host: config.host,
   agents: monitor,
@@ -37,7 +40,8 @@ const server = createServer({
       (await monitor.ready()).agents.some((agent) => projectKey(agent.cwd) === key),
   }),
   skills: () => listSkills(skillRoots(config.claudeDir, config.codexDir)),
-  queue: new QueueStore(config.dataDir, actions),
+  queue,
+  attachments,
   usage: new UsageService({ claudeDir: config.claudeDir, codexDir: config.codexDir }),
   openTerminal: (agent) => openAgentTerminal(agent),
   // Two levels up from both src/server (development) and dist/server (built).
@@ -70,7 +74,21 @@ server.listen(config.port, config.host, () => {
     );
   }
   monitor.start();
+  void pruneAttachments();
 });
+
+/** Agents look at pasted images early in their task, so month-old ones go unless still queued. */
+async function pruneAttachments(): Promise<void> {
+  try {
+    const { tasks } = await queue.read();
+    await attachments.prune({
+      maxAgeMs: 30 * 24 * 60 * 60 * 1000,
+      keep: new Set(tasks.flatMap((task) => task.images ?? [])),
+    });
+  } catch (error) {
+    console.warn('Could not clean up old attachments:', error);
+  }
+}
 
 function shutdown(): void {
   monitor.stop();

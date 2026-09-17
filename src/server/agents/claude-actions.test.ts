@@ -75,6 +75,43 @@ describe('claude actions', () => {
       ]);
     });
 
+    it('points the agent at attached images and gives it access to them', async () => {
+      const { calls, run } = recorder();
+      const id = '0f8fad5b-d9cb-469f-a165-70867728950e.png';
+      const attachments = {
+        dir: '/data/attachments',
+        paths: (ids: readonly string[]) =>
+          Promise.resolve(ids.map((item) => `/data/attachments/${item}`)),
+      };
+      await createClaudeActions(run, attachments).start({
+        cwd: project,
+        prompt: 'What is wrong in this screenshot?',
+        name: 'Screenshot',
+        images: [id],
+      });
+      assert.deepEqual(calls[0]?.args, [
+        '--bg',
+        '--name',
+        'Screenshot',
+        '--add-dir',
+        '/data/attachments',
+        '--',
+        `What is wrong in this screenshot?
+
+Attached image (open with the Read tool):
+- /data/attachments/${id}`,
+      ]);
+
+      await rejectsWithStatus(
+        createClaudeActions(run, attachments).start({
+          cwd: project,
+          prompt: 'x',
+          images: ['../../etc/passwd'],
+        }),
+        400,
+      );
+    });
+
     it("names the task after the prompt's first line when no name is given", async () => {
       const { calls, run } = recorder();
       await createClaudeActions(run).start({

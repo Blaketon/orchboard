@@ -13,6 +13,8 @@ export interface StartTaskRequest {
   /** Defaults to the prompt's first line. */
   readonly name?: string;
   readonly permissionMode?: PermissionMode;
+  /** Ids of uploaded attachments the agent should look at. */
+  readonly images?: readonly string[];
 }
 
 export interface StartTaskResponse {
@@ -56,6 +58,8 @@ export interface QueuedTask {
   readonly cwd: string;
   readonly prompt: string;
   readonly permissionMode: PermissionMode;
+  /** Attachment ids, as in `StartTaskRequest.images`. Missing in queues saved by older versions. */
+  readonly images?: readonly string[];
   readonly createdAt: number;
 }
 
@@ -192,4 +196,10 @@ export interface Skill {
   readonly path: string;
   /** Bundled with the tool rather than installed by the user. */
   readonly system: boolean;
+}
+
+/** `POST /api/attachments` (raw image body): an image saved for a task prompt. */
+export interface Attachment {
+  /** Pass in `StartTaskRequest.images`; the image is served at `/api/attachments/:id`. */
+  readonly id: string;
 }

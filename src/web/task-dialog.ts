@@ -12,6 +12,7 @@ import {
   type PermissionMode,
 } from '../shared/permission-modes.ts';
 import { requestJson } from './api.ts';
+import { createAttachmentPicker } from './attachments.ts';
 import { el } from './dom.ts';
 import { showToast } from './toast.ts';
 
@@ -69,6 +70,8 @@ export function createTaskDialog(options: {
       el('option', { attrs: { value: option.value }, text: option.label }),
     ),
   );
+  const images = createAttachmentPicker();
+  images.listenOn(prompt);
   const error = el('p', { className: 'form-error', attrs: { role: 'alert' } });
   error.hidden = true;
   const submit = el('button', { className: 'button button-primary', attrs: { type: 'submit' } });
@@ -79,6 +82,10 @@ export function createTaskDialog(options: {
     field('Project folder', cwd),
     field('Task name', name),
     field('Prompt', prompt, 'Ctrl+Enter to submit'),
+    el('div', { className: 'field' }, [
+      el('span', { className: 'field-label', text: 'Images' }),
+      images.element,
+    ]),
     field('Permissions', mode),
     error,
     el('div', { className: 'form-actions' }, [cancel, submit]),
@@ -111,12 +118,18 @@ export function createTaskDialog(options: {
   });
 
   async function save(): Promise<void> {
+    if (images.isUploading()) {
+      error.textContent = 'Wait for the images to finish uploading.';
+      error.hidden = false;
+      return;
+    }
     const permissionMode = isPermissionMode(mode.value) ? mode.value : DEFAULT_PERMISSION_MODE;
     const fields = {
       cwd: cwd.value.trim(),
       prompt: prompt.value,
       name: name.value.trim(),
       permissionMode,
+      images: images.ids(),
     };
     const labels = LABELS[target.kind];
     error.hidden = true;
@@ -159,7 +172,13 @@ export function createTaskDialog(options: {
 
   function show(
     next: Target,
-    values: { cwd: string; name: string; prompt: string; mode: PermissionMode },
+    values: {
+      cwd: string;
+      name: string;
+      prompt: string;
+      mode: PermissionMode;
+      images: readonly string[];
+    },
   ) {
     target = next;
     const labels = LABELS[next.kind];
@@ -172,6 +191,7 @@ export function createTaskDialog(options: {
     name.value = values.name;
     prompt.value = values.prompt;
     mode.value = values.mode;
+    images.reset(values.images);
     error.hidden = true;
     dialog.showModal();
     (cwd.value ? prompt : cwd).focus();
@@ -181,19 +201,25 @@ export function createTaskDialog(options: {
     open(defaultCwd) {
       show(
         { kind: 'start' },
-        { cwd: defaultCwd ?? cwd.value, name: '', prompt: '', mode: storedMode() },
+        { cwd: defaultCwd ?? cwd.value, name: '', prompt: '', mode: storedMode(), images: [] },
       );
     },
     openQueueAdd(column) {
       show(
         { kind: 'queue-add', column },
-        { cwd: column.project, name: '', prompt: '', mode: storedMode() },
+        { cwd: column.project, name: '', prompt: '', mode: storedMode(), images: [] },
       );
     },
     openQueueEdit(task) {
       show(
         { kind: 'queue-edit', task },
-        { cwd: task.cwd, name: task.name, prompt: task.prompt, mode: task.permissionMode },
+        {
+          cwd: task.cwd,
+          name: task.name,
+          prompt: task.prompt,
+          mode: task.permissionMode,
+          images: task.images ?? [],
+        },
       );
     },
   };
