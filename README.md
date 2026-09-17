@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo.png" alt="Orchboard logo" width="160">
+  <img src="https://raw.githubusercontent.com/Blaketon/orchboard/main/logo.png" alt="Orchboard logo" width="160">
 </p>
 
 <h1 align="center">Orchboard</h1>
@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/board.png" alt="The Orchboard board: agents grouped by status, with a project queue beside them" width="900">
+  <img src="https://raw.githubusercontent.com/Blaketon/orchboard/main/docs/demo.gif" alt="Orchboard: opening a task, editing project docs, and starting a new one" width="900">
 </p>
 
 Run several coding agents at once and you lose track of them: which one is waiting for you, which
@@ -62,9 +62,9 @@ Then open <http://localhost:4317>.
 
 ## What you can do
 
-| ![Task detail with a Codex approval request](docs/screenshots/detail.png)                      | ![The Docs view editing CLAUDE.md](docs/screenshots/docs.png)   |
-| ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Follow a task's conversation, tokens, cost and context — and answer Codex's approval requests. | Edit each project's `CLAUDE.md` and `AGENTS.md` in the browser. |
+| ![Task detail with a Codex approval request](https://raw.githubusercontent.com/Blaketon/orchboard/main/docs/screenshots/detail.png) | ![The Docs view editing CLAUDE.md](https://raw.githubusercontent.com/Blaketon/orchboard/main/docs/screenshots/docs.png) |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Follow a task's conversation, tokens, cost and context — and answer Codex's approval requests.                                      | Edit each project's `CLAUDE.md` and `AGENTS.md` in the browser.                                                         |
 
 - **One board for both agents.** Claude Code background agents and Codex tasks side by side,
   grouped into Awaiting input, Working and Completed, updated live.
