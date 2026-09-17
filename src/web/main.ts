@@ -1,4 +1,4 @@
-import type { AgentSnapshot, SavedProjectView } from '../shared/api.ts';
+import type { AgentSnapshot, QueueState, SavedProjectView } from '../shared/api.ts';
 import { filterAgents, listProjects, type Project } from './agents.ts';
 import { errorMessage, requestJson } from './api.ts';
 import { renderBoard, renderProjects } from './board.ts';
@@ -6,7 +6,8 @@ import { createDetailPanel } from './detail.ts';
 import { confirmDialog, formDialog } from './dialogs.ts';
 import { byId } from './dom.ts';
 import { connectLiveAgents, type ConnectionState } from './live.ts';
-import { createNewTaskDialog } from './new-task.ts';
+import { createTaskDialog } from './task-dialog.ts';
+import { renderQueueColumns, type QueueHandlers } from './queue.ts';
 import { setUpThemeToggle } from './theme.ts';
 import { showToast } from './toast.ts';
 
@@ -25,6 +26,7 @@ const detail = createDetailPanel();
 
 let snapshot: AgentSnapshot | undefined;
 let savedProjects: SavedProjectView[] = [];
+let queue: QueueState = { columns: [], tasks: [] };
 let selectedProject: string | null = null;
 let query = '';
 
@@ -32,13 +34,121 @@ setUpThemeToggle(byId('theme-toggle', 'button'));
 
 const currentProjects = (): Project[] => listProjects(snapshot?.agents ?? [], savedProjects);
 
-const newTask = createNewTaskDialog({
+function setQueue(next: QueueState): void {
+  queue = next;
+  render();
+}
+
+const taskDialog = createTaskDialog({
   knownProjects: () => currentProjects().map((project) => project.key),
-  onStarted: () => undefined,
+  onQueueChanged: setQueue,
 });
 byId('new-task', 'button').addEventListener('click', () => {
-  newTask.open(selectedProject);
+  taskDialog.open(selectedProject);
 });
+
+/** Runs a queue request and applies the returned state, reporting failures as toasts. */
+function updateQueue(run: () => Promise<QueueState>): void {
+  run()
+    .then(setQueue)
+    .catch((error: unknown) => {
+      showToast(errorMessage(error), 'error');
+    });
+}
+
+const queueHandlers: QueueHandlers = {
+  onAddColumn: () => {
+    const project = selectedProject;
+    if (!project) return;
+    void formDialog({
+      title: 'Add column',
+      submitLabel: 'Add column',
+      fields: [
+        { name: 'name', label: 'Name', placeholder: 'Next up', required: true, maxLength: 40 },
+      ],
+      submit: async ({ name }) => {
+        setQueue(await requestJson<QueueState>('POST', '/api/queue/columns', { project, name }));
+      },
+    });
+  },
+  onRenameColumn: (column) => {
+    void formDialog({
+      title: 'Rename column',
+      submitLabel: 'Save',
+      fields: [{ name: 'name', label: 'Name', value: column.name, required: true, maxLength: 40 }],
+      submit: async ({ name }) => {
+        setQueue(
+          await requestJson<QueueState>(
+            'PATCH',
+            `/api/queue/columns/${encodeURIComponent(column.id)}`,
+            {
+              name,
+            },
+          ),
+        );
+      },
+    });
+  },
+  onRemoveColumn: (column, taskCount) => {
+    void confirmDialog({
+      title: 'Remove column?',
+      message: taskCount
+        ? `"${column.name}" and its ${taskCount} queued task${taskCount === 1 ? '' : 's'} will be deleted.`
+        : `"${column.name}" will be deleted.`,
+      confirmLabel: 'Remove',
+    }).then((confirmed) => {
+      if (confirmed) {
+        updateQueue(() =>
+          requestJson('DELETE', `/api/queue/columns/${encodeURIComponent(column.id)}`),
+        );
+      }
+    });
+  },
+  onAddTask: (column) => {
+    taskDialog.openQueueAdd(column);
+  },
+  onEditTask: (task) => {
+    taskDialog.openQueueEdit(task);
+  },
+  onRemoveTask: (task) => {
+    void confirmDialog({
+      title: 'Remove queued task?',
+      message: `"${task.name}" will be deleted from the queue.`,
+      confirmLabel: 'Remove',
+    }).then((confirmed) => {
+      if (confirmed) {
+        updateQueue(() => requestJson('DELETE', `/api/queue/tasks/${encodeURIComponent(task.id)}`));
+      }
+    });
+  },
+  onStartTask: (task) => {
+    updateQueue(async () => {
+      const result = await requestJson<{ queue: QueueState }>(
+        'POST',
+        `/api/queue/tasks/${encodeURIComponent(task.id)}/start`,
+        {},
+      );
+      showToast(`Started "${task.name}"`, 'success');
+      return result.queue;
+    });
+  },
+  onMoveTask: (taskId, columnId, index) => {
+    updateQueue(() =>
+      requestJson('POST', `/api/queue/tasks/${encodeURIComponent(taskId)}/move`, {
+        columnId,
+        index,
+      }),
+    );
+  },
+};
+
+async function loadQueue(): Promise<void> {
+  try {
+    setQueue(await requestJson<QueueState>('GET', '/api/queue'));
+  } catch (error) {
+    showToast(`Could not load the queue: ${errorMessage(error)}`, 'error');
+  }
+}
 
 async function loadProjects(): Promise<void> {
   try {
@@ -134,6 +244,8 @@ function render(): void {
     onOpen: (agent) => {
       detail.open(agent);
     },
+    // Queue columns belong to one project, so they appear once a project is selected.
+    extraColumns: selectedProject ? renderQueueColumns(selectedProject, queue, queueHandlers) : [],
   });
   detail.update(snapshot.agents);
 }
@@ -155,6 +267,7 @@ connectLiveAgents({
 });
 
 void loadProjects();
+void loadQueue();
 
 // Keep "started 5m ago" labels current between snapshots.
 window.setInterval(render, 30_000);

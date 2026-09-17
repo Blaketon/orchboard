@@ -422,21 +422,96 @@ textarea {
 /* ---------- Columns and cards ---------- */
 
 .columns {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(260px, 1fr));
+  display: flex;
   gap: 16px;
-  align-items: start;
-  min-width: 820px;
+  align-items: flex-start;
 }
 
+/* Columns share the width, but never get narrower than 270px; beyond that the board scrolls. */
 .column {
   --state: var(--muted);
 
   display: flex;
+  flex: 1 0 270px;
   flex-direction: column;
+  max-width: 480px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface-2);
+}
+
+/* ---------- Queue columns ---------- */
+
+.queue-column {
+  --state: var(--focus);
+
+  border-style: dashed;
+}
+
+.column-tools {
+  display: flex;
+  gap: 2px;
+}
+
+.queue-card {
+  border-left-color: var(--focus);
+  cursor: grab;
+}
+
+.queue-card.dragging {
+  opacity: 0.4;
+}
+
+.queue-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.queue-card-actions .icon-button {
+  margin-left: auto;
+}
+
+.button-small {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.column-cards.drop-target {
+  min-height: 48px;
+  border-radius: 8px;
+  outline: 2px dashed color-mix(in srgb, var(--focus) 60%, transparent);
+  outline-offset: -4px;
+}
+
+.drop-before {
+  box-shadow: 0 -3px 0 var(--focus);
+}
+
+.add-task {
+  margin: 0 10px 10px;
+  padding: 6px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.add-task:hover,
+.add-column:hover {
+  border-color: var(--focus);
+  color: var(--text);
+}
+
+.add-column {
+  flex: 0 0 180px;
+  min-height: 90px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
 }
 
 .column[data-state='blocked'],

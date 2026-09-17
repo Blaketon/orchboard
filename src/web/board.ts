@@ -7,6 +7,8 @@ export interface BoardOptions {
   readonly now: number;
   readonly emptyText: string;
   readonly onOpen: (agent: ClaudeAgent) => void;
+  /** Extra columns after the status columns, e.g. the selected project's queue. */
+  readonly extraColumns?: readonly HTMLElement[];
 }
 
 export function renderBoard(
@@ -39,7 +41,11 @@ export function renderBoard(
       ],
     );
   });
-  container.replaceChildren(el('div', { className: 'columns' }, columns));
+  // A drag in progress would be cancelled by replacing its card, so skip re-renders until it ends.
+  if (container.querySelector('.dragging')) return;
+  container.replaceChildren(
+    el('div', { className: 'columns' }, [...columns, ...(options.extraColumns ?? [])]),
+  );
 
   if (focusedId) {
     container.querySelector<HTMLElement>(`[data-agent-id="${CSS.escape(focusedId)}"]`)?.focus();
