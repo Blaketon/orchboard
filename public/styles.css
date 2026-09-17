@@ -1034,3 +1034,76 @@ textarea {
 .list tr[data-state] .badge {
   white-space: nowrap;
 }
+
+/* ---------- Settings ---------- */
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.settings-section legend {
+  padding: 0 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.check input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+
+.check-hint {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.check-row {
+  display: flex;
+  gap: 18px;
+}
+
+.field-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.field-inline .field-label {
+  font-weight: 400;
+}
+
+.field-narrow {
+  width: 80px;
+}
+
+.field-inline input[type='range'] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.toast-button {
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.toast-button:hover {
+  background: var(--surface-2);
+}

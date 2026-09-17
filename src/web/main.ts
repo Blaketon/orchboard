@@ -8,8 +8,12 @@ import { byId } from './dom.ts';
 import { renderList } from './list.ts';
 import { connectLiveAgents, type ConnectionState } from './live.ts';
 import { createTaskDialog } from './task-dialog.ts';
+import { createNotifier } from './notifications.ts';
 import { renderQueueColumns, type QueueHandlers } from './queue.ts';
-import { setUpThemeToggle } from './theme.ts';
+import { createSettingsDialog } from './settings-dialog.ts';
+import { SettingsStore } from './settings-store.ts';
+import { unlockAudioOnInteraction } from './sound.ts';
+import { applyTheme } from './theme.ts';
 import { showToast } from './toast.ts';
 
 const CONNECTION_LABELS: Readonly<Record<ConnectionState, string>> = {
@@ -51,7 +55,22 @@ let queue: QueueState = { columns: [], tasks: [] };
 let selectedProject: string | null = null;
 let query = '';
 
-setUpThemeToggle(byId('theme-toggle', 'button'));
+const settings = new SettingsStore();
+settings.subscribe((current) => {
+  applyTheme(current.theme);
+});
+const settingsDialog = createSettingsDialog(settings);
+byId('open-settings', 'button').addEventListener('click', () => {
+  settingsDialog.open();
+});
+unlockAudioOnInteraction();
+
+const notifier = createNotifier({
+  settings: () => settings.get(),
+  onOpen: (agent) => {
+    detail.open(agent);
+  },
+});
 
 const currentProjects = (): Project[] => listProjects(snapshot?.agents ?? [], savedProjects);
 
@@ -310,6 +329,7 @@ connectLiveAgents({
   onSnapshot: (next) => {
     snapshot = next;
     render();
+    notifier.handle(next.agents);
   },
 });
 
