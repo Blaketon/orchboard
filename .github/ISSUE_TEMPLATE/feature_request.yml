@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest something Orchboard should do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: The situation you run into, not just the feature you have in mind.
+      placeholder: I run six agents across three repos and lose track of which ones I already reviewed.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help
+      description: How you imagine it working in Orchboard.
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do today
+      description: Workarounds you use, or other tools that solve this well.
+    validations:
+      required: false

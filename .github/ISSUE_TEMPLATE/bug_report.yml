@@ -1,0 +1,48 @@
+name: Bug report
+description: Something in Orchboard behaves incorrectly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please leave out transcript content you would rather keep private.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+      placeholder: |
+        1. Started a Codex task from the board
+        2. Approved the command
+        3. The card stayed in Awaiting input
+    validations:
+      required: true
+  - type: input
+    id: orchboard-version
+    attributes:
+      label: Orchboard version
+      description: Output of `orchboard --version`, or the commit you are on.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: OS and Node version
+      placeholder: Windows 11, Node 24.4.0
+    validations:
+      required: true
+  - type: input
+    id: agent-versions
+    attributes:
+      label: Agent versions
+      description: Output of `claude --version` and `codex --version`, whichever you use.
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Terminal output
+      description: What Orchboard printed, and any errors from the browser console.
+      render: text
+    validations:
+      required: false
