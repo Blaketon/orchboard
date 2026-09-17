@@ -1,0 +1,17 @@
+# Dependencies and logs
+node_modules/
+npm-debug.log*
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local tooling output
+graphify-out/
+/.claude/worktrees
+.claude/settings.local.json
+
+# Personal agent instructions
+CLAUDE.local.md
+AGENTS.override.md
