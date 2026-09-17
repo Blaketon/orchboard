@@ -3,6 +3,7 @@ import { listClaudeAgents } from './agents/claude-agents.ts';
 import { loadConfig, type Config } from './config.ts';
 import { isLoopbackHost } from './security.ts';
 import { createServer } from './server.ts';
+import { TranscriptReader } from './transcripts/transcript-reader.ts';
 
 let config: Config;
 try {
@@ -13,7 +14,11 @@ try {
 }
 
 const monitor = new AgentMonitor({ list: () => listClaudeAgents() });
-const server = createServer({ host: config.host, agents: monitor });
+const server = createServer({
+  host: config.host,
+  agents: monitor,
+  transcripts: new TranscriptReader(config.claudeDir),
+});
 
 server.on('error', (error: NodeJS.ErrnoException) => {
   if (error.code === 'EADDRINUSE') {

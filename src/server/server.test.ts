@@ -5,6 +5,7 @@ import { after, before, describe, it } from 'node:test';
 import { AgentMonitor, type AgentSnapshot } from './agents/agent-monitor.ts';
 import type { ClaudeAgent } from './agents/claude-agents.ts';
 import { createServer } from './server.ts';
+import type { TranscriptEntry } from './transcripts/transcript-parser.ts';
 
 interface JsonResponse {
   status: number;
@@ -29,7 +30,20 @@ describe('server', () => {
     list: () => Promise.resolve({ agents, skipped: [] }),
     log: () => undefined,
   });
-  const server = createServer({ host: '127.0.0.1', agents: monitor });
+  const transcriptReads: string[] = [];
+  const transcript: TranscriptEntry[] = [
+    { role: 'user', timestamp: 't', parts: [{ type: 'text', text: 'Fix the tests' }] },
+  ];
+  const server = createServer({
+    host: '127.0.0.1',
+    agents: monitor,
+    transcripts: {
+      read: (session) => {
+        transcriptReads.push(session.sessionId);
+        return Promise.resolve(transcript);
+      },
+    },
+  });
   let port = 0;
 
   before(async () => {
@@ -128,6 +142,17 @@ describe('server', () => {
     } finally {
       stream.close();
     }
+  });
+
+  it("returns an agent's transcript", async () => {
+    const res = await request('/api/agents/a/transcript');
+    assert.deepEqual(res, { status: 200, body: { entries: transcript } });
+    assert.deepEqual(transcriptReads, ['a-session']);
+  });
+
+  it('returns 404 for the transcript of an unknown agent', async () => {
+    const res = await request('/api/agents/nope/transcript');
+    assert.deepEqual(res, { status: 404, body: { error: 'Agent not found' } });
   });
 
   it('returns 404 for unknown routes and methods', async () => {

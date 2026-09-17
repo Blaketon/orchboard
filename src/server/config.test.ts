@@ -6,22 +6,29 @@ import { DATA_DIR_NAME, DEFAULT_HOST, DEFAULT_PORT, loadConfig, parsePort } from
 const home = path.resolve('/home/tester');
 
 describe('loadConfig', () => {
-  it('defaults to loopback, the default port, and a data dir in the home directory', () => {
+  it('defaults to loopback, the default port, and folders in the home directory', () => {
     assert.deepEqual(loadConfig({}, home), {
       port: DEFAULT_PORT,
       host: DEFAULT_HOST,
       dataDir: path.join(home, DATA_DIR_NAME),
+      claudeDir: path.join(home, '.claude'),
     });
   });
 
-  it('reads ORCHBOARD_PORT, ORCHBOARD_HOST, and ORCHBOARD_DATA_DIR', () => {
+  it('reads ORCHBOARD_PORT, ORCHBOARD_HOST, ORCHBOARD_DATA_DIR, and CLAUDE_CONFIG_DIR', () => {
     const dataDir = path.resolve('/srv/orchboard');
+    const claudeDir = path.resolve('/srv/claude');
     assert.deepEqual(
       loadConfig(
-        { ORCHBOARD_PORT: '5000', ORCHBOARD_HOST: '0.0.0.0', ORCHBOARD_DATA_DIR: dataDir },
+        {
+          ORCHBOARD_PORT: '5000',
+          ORCHBOARD_HOST: '0.0.0.0',
+          ORCHBOARD_DATA_DIR: dataDir,
+          CLAUDE_CONFIG_DIR: claudeDir,
+        },
         home,
       ),
-      { port: 5000, host: '0.0.0.0', dataDir },
+      { port: 5000, host: '0.0.0.0', dataDir, claudeDir },
     );
   });
 

@@ -10,6 +10,8 @@ export interface Config {
   readonly host: string;
   /** Where Orchboard keeps its own state (projects, queue, archive). */
   readonly dataDir: string;
+  /** Claude Code's config directory, which holds session transcripts. */
+  readonly claudeDir: string;
 }
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -17,11 +19,12 @@ type Env = Readonly<Record<string, string | undefined>>;
 // Prefixed on purpose: some shells and containers export HOST as the machine's
 // hostname, which would silently bind the server to the network.
 export function loadConfig(env: Env = process.env, homeDir: string = os.homedir()): Config {
-  const dataDir = nonBlank(env.ORCHBOARD_DATA_DIR);
   return {
     port: parsePort(env.ORCHBOARD_PORT),
     host: nonBlank(env.ORCHBOARD_HOST) ?? DEFAULT_HOST,
-    dataDir: dataDir === undefined ? path.join(homeDir, DATA_DIR_NAME) : path.resolve(dataDir),
+    dataDir: resolveDir(env.ORCHBOARD_DATA_DIR, path.join(homeDir, DATA_DIR_NAME)),
+    // Same variable Claude Code itself uses to relocate its config directory.
+    claudeDir: resolveDir(env.CLAUDE_CONFIG_DIR, path.join(homeDir, '.claude')),
   };
 }
 
@@ -33,6 +36,11 @@ export function parsePort(value: string | undefined): number {
     throw new Error(`Invalid ORCHBOARD_PORT "${raw}": expected an integer from 0 to 65535.`);
   }
   return port;
+}
+
+function resolveDir(value: string | undefined, fallback: string): string {
+  const dir = nonBlank(value);
+  return dir === undefined ? fallback : path.resolve(dir);
 }
 
 function nonBlank(value: string | undefined): string | undefined {
