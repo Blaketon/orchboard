@@ -259,6 +259,369 @@ input {
   padding: 24px;
 }
 
+/* ---------- Projects ---------- */
+
+.project {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.project:hover {
+  background: var(--surface-2);
+}
+
+.project[aria-current='true'] {
+  background: var(--surface-2);
+  font-weight: 600;
+}
+
+.project-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-count {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Columns and cards ---------- */
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(260px, 1fr));
+  gap: 16px;
+  align-items: start;
+  min-width: 820px;
+}
+
+.column {
+  --state: var(--muted);
+
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.column[data-state='blocked'],
+.card[data-state='blocked'],
+.badge[data-state='blocked'] {
+  --state: var(--blocked);
+}
+
+.column[data-state='working'],
+.card[data-state='working'],
+.badge[data-state='working'] {
+  --state: var(--working);
+}
+
+.column[data-state='done'],
+.card[data-state='done'],
+.badge[data-state='done'] {
+  --state: var(--done);
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+}
+
+.column-header::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--state);
+}
+
+.column-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.column-count {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.column-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 10px 10px;
+}
+
+.column-empty {
+  margin: 4px 4px 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--state);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  text-align: left;
+  cursor: pointer;
+}
+
+.card:hover {
+  border-color: color-mix(in srgb, var(--state) 60%, var(--border));
+}
+
+.card-title {
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+
+.card-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.card-project {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-age {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Detail panel ---------- */
+
+.detail {
+  position: fixed;
+  inset: 0 0 0 auto;
+  width: min(760px, 100vw);
+  max-width: 100vw;
+  height: 100vh;
+  max-height: 100vh;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.detail[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.detail::backdrop {
+  background: rgb(0 0 0 / 35%);
+}
+
+.detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-title {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.badge {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--state) 16%, transparent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.usage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.usage:empty {
+  display: none;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-label {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.stat-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-context {
+  flex: 1 1 180px;
+}
+
+.context-bar {
+  height: 6px;
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+.context-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+/* ---------- Transcript ---------- */
+
+.transcript {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 20px 24px;
+}
+
+.entry {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.entry:last-child {
+  border-bottom: 0;
+}
+
+.entry-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.entry-role {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.entry[data-role='user'] .entry-role {
+  color: var(--focus);
+}
+
+.entry-time {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.entry-text {
+  margin: 4px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tool-call {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 4px 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  font-size: 13px;
+}
+
+.tool-name {
+  flex-shrink: 0;
+  font-weight: 650;
+}
+
+.tool-summary {
+  overflow: hidden;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-result {
+  margin: 2px 0 6px;
+  font-size: 12px;
+}
+
+.tool-result summary {
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.tool-result[data-error='true'] summary {
+  color: var(--blocked);
+}
+
+.tool-result pre {
+  max-height: 260px;
+  margin: 6px 0 0;
+  padding: 8px;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--bg);
+  font-family: var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* ---------- Small screens ---------- */
 
 @media (width <= 760px) {
