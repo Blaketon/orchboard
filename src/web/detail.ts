@@ -4,6 +4,7 @@ import { postJson, requestJson } from './api.ts';
 import { confirmDialog } from './dialogs.ts';
 import { el } from './dom.ts';
 import { formatAge, formatClock, formatCost, formatPercent, formatTokens } from './format.ts';
+import { renderMarkdown } from './markdown.ts';
 import { showToast } from './toast.ts';
 
 const REFRESH_MS = 3000;
@@ -303,7 +304,7 @@ function stat(label: string, value: string): HTMLElement {
 function renderPart(part: TranscriptPart): HTMLElement {
   switch (part.type) {
     case 'text':
-      return el('p', { className: 'entry-text', text: part.text });
+      return el('div', { className: 'entry-text' }, [renderMarkdown(part.text)]);
     case 'tool_call':
       return el('div', { className: 'tool-call' }, [
         el('span', { className: 'tool-name', text: part.name }),
