@@ -156,3 +156,40 @@ export interface Transcript {
   /** Null when the session hasn't written a transcript yet. */
   readonly usage: SessionUsage | null;
 }
+
+/** Agent instruction files a project can have: Claude Code reads CLAUDE.md, Codex reads AGENTS.md. */
+export type ProjectDocName = 'CLAUDE.md' | 'AGENTS.md';
+
+export interface ProjectDoc {
+  readonly name: ProjectDocName;
+  readonly exists: boolean;
+  readonly content: string;
+  /** The file's modification time, sent back when saving to detect edits made elsewhere. */
+  readonly modifiedAt: number | null;
+}
+
+/** `GET /api/projects/docs?path=`. */
+export interface ProjectDocs {
+  readonly path: string;
+  readonly files: ProjectDoc[];
+}
+
+/** `PUT /api/projects/docs`. Responds with the saved `ProjectDoc`. */
+export interface SaveProjectDocRequest {
+  readonly path: string;
+  readonly name: ProjectDocName;
+  readonly content: string;
+  /** The `modifiedAt` the edit started from; null when the file didn't exist. */
+  readonly expectedModifiedAt: number | null;
+}
+
+/** `GET /api/skills`: one installed skill. */
+export interface Skill {
+  readonly name: string;
+  readonly description: string;
+  readonly source: 'Claude' | 'Codex';
+  /** Folder holding the skill's SKILL.md. */
+  readonly path: string;
+  /** Bundled with the tool rather than installed by the user. */
+  readonly system: boolean;
+}

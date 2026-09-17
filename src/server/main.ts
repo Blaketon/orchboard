@@ -1,13 +1,16 @@
 import path from 'node:path';
+import { projectKey } from '../shared/projects.ts';
 import { AgentMonitor } from './agents/agent-monitor.ts';
 import { createClaudeActions } from './agents/claude-actions.ts';
 import { listClaudeAgents } from './agents/claude-agents.ts';
 import { openAgentTerminal } from './agents/terminal.ts';
 import { loadConfig, type Config } from './config.ts';
+import { ProjectDocs } from './projects/project-docs.ts';
 import { ProjectsStore } from './projects/projects-store.ts';
 import { QueueStore } from './queue/queue-store.ts';
 import { isLoopbackHost } from './security.ts';
 import { createServer } from './server.ts';
+import { listSkills, skillRoots } from './skills/skills.ts';
 import { TranscriptReader } from './transcripts/transcript-reader.ts';
 import { UsageService } from './usage/usage-service.ts';
 
@@ -21,12 +24,19 @@ try {
 
 const monitor = new AgentMonitor({ list: () => listClaudeAgents() });
 const actions = createClaudeActions();
+const projects = new ProjectsStore(config.dataDir);
 const server = createServer({
   host: config.host,
   agents: monitor,
   transcripts: new TranscriptReader(config.claudeDir),
   actions,
-  projects: new ProjectsStore(config.dataDir),
+  projects,
+  projectDocs: new ProjectDocs({
+    isKnownProject: async (key) =>
+      (await projects.list()).some((project) => project.path === key) ||
+      (await monitor.ready()).agents.some((agent) => projectKey(agent.cwd) === key),
+  }),
+  skills: () => listSkills(skillRoots(config.claudeDir, config.codexDir)),
   queue: new QueueStore(config.dataDir, actions),
   usage: new UsageService({ claudeDir: config.claudeDir, codexDir: config.codexDir }),
   openTerminal: (agent) => openAgentTerminal(agent),

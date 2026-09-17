@@ -1,8 +1,9 @@
 import http from 'node:http';
-import type { ClaudeAgent } from '../shared/api.ts';
+import type { ClaudeAgent, Skill } from '../shared/api.ts';
 import type { AgentFeed, AgentSnapshot } from './agents/agent-monitor.ts';
 import type { ClaudeActions } from './agents/claude-actions.ts';
 import { HttpError, readJsonBody } from './http-error.ts';
+import type { ProjectDocs } from './projects/project-docs.ts';
 import type { ProjectsStore } from './projects/projects-store.ts';
 import type { QueueStore } from './queue/queue-store.ts';
 import { isLoopbackHost, isTrustedRequest } from './security.ts';
@@ -16,6 +17,8 @@ export interface ServerOptions {
   readonly transcripts: TranscriptSource;
   readonly actions: ClaudeActions;
   readonly projects: Pick<ProjectsStore, 'list' | 'save' | 'remove'>;
+  readonly projectDocs: Pick<ProjectDocs, 'read' | 'save'>;
+  readonly skills: () => Promise<Skill[]>;
   readonly queue: Pick<
     QueueStore,
     | 'read'
@@ -106,6 +109,29 @@ export function createServer(options: ServerOptions): http.Server {
         const projectPath = new URL(req.url ?? '/', 'http://localhost').searchParams.get('path');
         if (!projectPath) throw new HttpError(400, 'Missing project path.');
         sendJson(res, 200, await options.projects.remove(projectPath));
+      },
+    },
+    {
+      method: 'GET',
+      path: '/api/projects/docs',
+      handler: async (req, res) => {
+        const projectPath = new URL(req.url ?? '/', 'http://localhost').searchParams.get('path');
+        if (!projectPath) throw new HttpError(400, 'Missing project path.');
+        sendJson(res, 200, await options.projectDocs.read(projectPath));
+      },
+    },
+    {
+      method: 'PUT',
+      path: '/api/projects/docs',
+      handler: async (req, res) => {
+        sendJson(res, 200, await options.projectDocs.save(await readJsonBody(req)));
+      },
+    },
+    {
+      method: 'GET',
+      path: '/api/skills',
+      handler: async (_req, res) => {
+        sendJson(res, 200, await options.skills());
       },
     },
     {

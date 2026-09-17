@@ -1,6 +1,17 @@
+/** A failed API request, carrying the HTTP status so callers can react to e.g. a 409 conflict. */
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 /** Sends a request and returns the parsed JSON response, throwing the server's error message on failure. */
 export async function requestJson<T>(
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   url: string,
   body?: unknown,
 ): Promise<T> {
@@ -16,7 +27,7 @@ export async function requestJson<T>(
       typeof data === 'object' && data !== null && 'error' in data && typeof data.error === 'string'
         ? data.error
         : `Request failed (HTTP ${response.status})`;
-    throw new Error(message);
+    throw new ApiError(response.status, message);
   }
   return data as T;
 }

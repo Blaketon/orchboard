@@ -3,6 +3,7 @@ import { filterAgents, listProjects, type Project } from './agents.ts';
 import { errorMessage, requestJson } from './api.ts';
 import { renderBoard, renderProjects } from './board.ts';
 import { createDetailPanel } from './detail.ts';
+import { createDocsView } from './docs-view.ts';
 import { HiddenAgents } from './hidden-agents.ts';
 import { confirmDialog, formDialog } from './dialogs.ts';
 import { byId } from './dom.ts';
@@ -12,6 +13,7 @@ import { createTaskDialog } from './task-dialog.ts';
 import { createNotifier } from './notifications.ts';
 import { renderQueueColumns, type QueueHandlers } from './queue.ts';
 import { createSettingsDialog } from './settings-dialog.ts';
+import { createSkillsDialog } from './skills-dialog.ts';
 import { SettingsStore } from './settings-store.ts';
 import { unlockAudioOnInteraction } from './sound.ts';
 import { applyTheme } from './theme.ts';
@@ -25,6 +27,8 @@ const CONNECTION_LABELS: Readonly<Record<ConnectionState, string>> = {
 };
 
 const board = byId('board', 'div');
+const docs = byId('docs', 'div');
+const docsView = createDocsView(docs);
 const notice = byId('notice', 'p');
 const connection = byId('connection', 'span');
 const projectList = byId('project-list', 'ul');
@@ -43,12 +47,16 @@ const detail = createDetailPanel({
   },
 });
 
-type View = 'board' | 'list';
+type View = 'board' | 'list' | 'docs';
 const VIEW_KEY = 'orchboard-view';
+
+function parseView(value: string | null | undefined): View {
+  return value === 'list' || value === 'docs' ? value : 'board';
+}
 
 function storedView(): View {
   try {
-    return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'board';
+    return parseView(localStorage.getItem(VIEW_KEY));
   } catch {
     return 'board';
   }
@@ -76,6 +84,10 @@ settings.subscribe((current) => {
 const settingsDialog = createSettingsDialog(settings);
 byId('open-settings', 'button').addEventListener('click', () => {
   settingsDialog.open();
+});
+const skillsDialog = createSkillsDialog();
+byId('open-skills', 'button').addEventListener('click', () => {
+  skillsDialog.open();
 });
 unlockAudioOnInteraction();
 createUsageWidget(byId('usage', 'section'), settings);
@@ -294,6 +306,20 @@ function render(): void {
   });
 
   hidden.prune(new Set(snapshot.agents.map((agent) => agent.id)));
+  detail.update(snapshot.agents);
+
+  const showDocs = view === 'docs';
+  board.hidden = showDocs;
+  docs.hidden = !showDocs;
+  search.hidden = showDocs;
+  if (showDocs) {
+    hiddenBar.hidden = true;
+    const project = projects.find((candidate) => candidate.key === selectedProject);
+    docsView.show(project ? { key: project.key, label: project.label } : null);
+    return;
+  }
+  docsView.hide();
+
   const matching = filterAgents(snapshot.agents, { project: selectedProject, query });
   const visible = showHidden ? matching : matching.filter((agent) => !hidden.has(agent.id));
   const hiddenCount = matching.length - visible.length;
@@ -327,7 +353,6 @@ function render(): void {
       },
     });
   }
-  detail.update(snapshot.agents);
 }
 
 hiddenToggle.addEventListener('click', () => {
@@ -351,7 +376,7 @@ function setView(next: View): void {
 }
 for (const button of viewButtons) {
   button.addEventListener('click', () => {
-    setView(button.dataset.view === 'list' ? 'list' : 'board');
+    setView(parseView(button.dataset.view));
   });
 }
 setView(view);

@@ -80,6 +80,27 @@ describe('server', () => {
         return Promise.resolve([]);
       },
     },
+    projectDocs: {
+      read: (projectPath) =>
+        Promise.resolve({
+          path: projectPath,
+          files: [{ name: 'CLAUDE.md', exists: true, content: '# Rules', modifiedAt: 1 }],
+        }),
+      save: (body) => {
+        savedDocs.push(body);
+        return Promise.resolve({ name: 'CLAUDE.md', exists: true, content: '', modifiedAt: 2 });
+      },
+    },
+    skills: () =>
+      Promise.resolve([
+        {
+          name: 'review',
+          description: 'Review a diff',
+          source: 'Claude',
+          path: '/s',
+          system: false,
+        },
+      ]),
     queue: new QueueStore(queueDir, actions),
     openTerminal: (target) => {
       actionCalls.push(['terminal', target.id]);
@@ -94,6 +115,7 @@ describe('server', () => {
     },
   });
   const removedProjects: string[] = [];
+  const savedDocs: unknown[] = [];
   let port = 0;
 
   before(async () => {
@@ -210,6 +232,28 @@ describe('server', () => {
     });
     assert.equal(res.status, 200);
     assert.deepEqual(removedProjects, ['C:/Git/my app']);
+  });
+
+  it('reads and saves project docs', async () => {
+    const read = await request(`/api/projects/docs?path=${encodeURIComponent('/work')}`);
+    assert.equal(read.status, 200);
+    assert.equal((read.body as { path: string }).path, '/work');
+    assert.equal((await request('/api/projects/docs')).status, 400);
+
+    const body = { path: '/work', name: 'CLAUDE.md', content: 'x', expectedModifiedAt: 1 };
+    const saved = await request('/api/projects/docs', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    assert.equal(saved.status, 200);
+    assert.deepEqual(savedDocs, [body]);
+  });
+
+  it('lists skills', async () => {
+    const res = await request('/api/skills');
+    assert.equal(res.status, 200);
+    assert.equal((res.body as { name: string }[])[0]?.name, 'review');
   });
 
   it('rejects action requests that are not JSON', async () => {
