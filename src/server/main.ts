@@ -1,3 +1,5 @@
+import { AgentMonitor } from './agents/agent-monitor.ts';
+import { listClaudeAgents } from './agents/claude-agents.ts';
 import { loadConfig, type Config } from './config.ts';
 import { isLoopbackHost } from './security.ts';
 import { createServer } from './server.ts';
@@ -10,7 +12,8 @@ try {
   process.exit(1);
 }
 
-const server = createServer(config);
+const monitor = new AgentMonitor({ list: () => listClaudeAgents() });
+const server = createServer({ host: config.host, agents: monitor });
 
 server.on('error', (error: NodeJS.ErrnoException) => {
   if (error.code === 'EADDRINUSE') {
@@ -34,4 +37,15 @@ server.listen(config.port, config.host, () => {
       `Warning: listening on ${config.host}. Anyone who can reach this address can use Orchboard.`,
     );
   }
+  monitor.start();
 });
+
+function shutdown(): void {
+  monitor.stop();
+  server.close(() => process.exit(0));
+  // Open event streams would otherwise keep the server from closing.
+  server.closeAllConnections();
+}
+
+process.once('SIGINT', shutdown);
+process.once('SIGTERM', shutdown);
