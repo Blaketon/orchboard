@@ -3,6 +3,7 @@ import type { ClaudeAgent } from '../shared/api.ts';
 import type { AgentFeed, AgentSnapshot } from './agents/agent-monitor.ts';
 import type { ClaudeActions } from './agents/claude-actions.ts';
 import { HttpError, readJsonBody } from './http-error.ts';
+import type { ProjectsStore } from './projects/projects-store.ts';
 import { isLoopbackHost, isTrustedRequest } from './security.ts';
 import { serveStatic, type StaticRoots } from './static-files.ts';
 import type { TranscriptSource } from './transcripts/transcript-reader.ts';
@@ -12,6 +13,7 @@ export interface ServerOptions {
   readonly agents: AgentFeed;
   readonly transcripts: TranscriptSource;
   readonly actions: ClaudeActions;
+  readonly projects: Pick<ProjectsStore, 'list' | 'save' | 'remove'>;
   /** Where the web app's files live. Without it, only the API is served. */
   readonly staticRoots?: StaticRoots;
   /** How often idle event streams send a comment so proxies don't drop them. */
@@ -64,6 +66,30 @@ export function createServer(options: ServerOptions): http.Server {
       path: '/api/agents/:id/transcript',
       handler: async (_req, res, params) => {
         sendJson(res, 200, await options.transcripts.read(await findAgent(params.id)));
+      },
+    },
+    {
+      method: 'GET',
+      path: '/api/projects',
+      handler: async (_req, res) => {
+        sendJson(res, 200, await options.projects.list());
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/projects',
+      handler: async (req, res) => {
+        sendJson(res, 200, await options.projects.save(await readJsonBody(req)));
+      },
+    },
+    {
+      method: 'DELETE',
+      path: '/api/projects',
+      handler: async (req, res) => {
+        // Project paths contain slashes, so they travel in the query string, not the path.
+        const projectPath = new URL(req.url ?? '/', 'http://localhost').searchParams.get('path');
+        if (!projectPath) throw new HttpError(400, 'Missing project path.');
+        sendJson(res, 200, await options.projects.remove(projectPath));
       },
     },
     {

@@ -803,3 +803,72 @@ textarea {
   max-height: 200px;
   resize: vertical;
 }
+
+/* ---------- Project management ---------- */
+
+.sidebar-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.sidebar-heading-row .sidebar-heading {
+  margin: 0;
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.project-item {
+  position: relative;
+}
+
+.project-actions {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: none;
+  gap: 2px;
+  transform: translateY(-50%);
+  background: var(--surface-2);
+}
+
+.project-item:hover .project-actions,
+.project-item:focus-within .project-actions {
+  display: flex;
+}
+
+.modal-small {
+  width: min(420px, calc(100vw - 32px));
+}
+
+.form-message {
+  margin: 0;
+  color: var(--muted);
+}
+
+.button-danger-solid {
+  border-color: var(--blocked);
+  background: var(--blocked);
+  color: #fff;
+  font-weight: 600;
+}

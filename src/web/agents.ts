@@ -1,11 +1,16 @@
-import type { AgentState, ClaudeAgent } from '../shared/api.ts';
+import type { AgentState, ClaudeAgent, SavedProject } from '../shared/api.ts';
+import { projectKey, projectLabel } from '../shared/projects.ts';
+
+export { projectKey, projectLabel };
 
 export interface Project {
   /** Normalized repository path; worktrees count as their main repository. */
   readonly key: string;
-  /** Short display name: the last two path segments. */
+  /** Display name: a saved label, else the folder name (plus its parent if names clash). */
   readonly label: string;
   readonly count: number;
+  /** True when the user added the project, so it can be renamed or removed. */
+  readonly saved: boolean;
 }
 
 export const BOARD_COLUMNS: readonly { readonly state: AgentState; readonly title: string }[] = [
@@ -14,24 +19,18 @@ export const BOARD_COLUMNS: readonly { readonly state: AgentState; readonly titl
   { state: 'done', title: 'Completed' },
 ];
 
-/** Groups `C:\repo` and `C:\repo\.claude\worktrees\fix` under one project. */
-export function projectKey(cwd: string): string {
-  const normalized = cwd.replace(/\\/g, '/').replace(/\/+$/, '');
-  const worktree = normalized.indexOf('/.claude/worktrees/');
-  return worktree === -1 ? normalized : normalized.slice(0, worktree);
-}
-
-/** The repository folder name, e.g. `storefront` for `C:/Git/acme/storefront`. */
-export function projectLabel(key: string): string {
-  return key.split('/').filter(Boolean).at(-1) ?? key;
-}
-
-export function listProjects(agents: readonly ClaudeAgent[]): Project[] {
+/** Projects from the agents on the board plus the ones the user saved, even without agents. */
+export function listProjects(
+  agents: readonly ClaudeAgent[],
+  saved: readonly SavedProject[] = [],
+): Project[] {
   const counts = new Map<string, number>();
+  for (const project of saved) counts.set(projectKey(project.path), 0);
   for (const agent of agents) {
     const key = projectKey(agent.cwd);
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
+  const savedLabels = new Map(saved.map((project) => [projectKey(project.path), project.label]));
 
   // Two repositories with the same folder name get their parent folder added to tell them apart.
   const nameCounts = new Map<string, number>();
@@ -43,9 +42,14 @@ export function listProjects(agents: readonly ClaudeAgent[]): Project[] {
   return [...counts]
     .map(([key, count]) => {
       const name = projectLabel(key);
-      const label =
+      const fallback =
         (nameCounts.get(name) ?? 0) > 1 ? key.split('/').filter(Boolean).slice(-2).join('/') : name;
-      return { key, label, count };
+      return {
+        key,
+        label: savedLabels.get(key) ?? fallback,
+        count,
+        saved: savedLabels.has(key),
+      };
     })
     .sort((a, b) => a.label.localeCompare(b.label));
 }

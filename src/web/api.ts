@@ -1,9 +1,14 @@
-/** POSTs JSON and returns the parsed response, throwing the server's error message on failure. */
-export async function postJson<T>(url: string, body: unknown): Promise<T> {
+/** Sends a request and returns the parsed JSON response, throwing the server's error message on failure. */
+export async function requestJson<T>(
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+  url: string,
+  body?: unknown,
+): Promise<T> {
   const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    method,
+    ...(body === undefined
+      ? {}
+      : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
   });
   const data = (await response.json().catch(() => null)) as unknown;
   if (!response.ok) {
@@ -14,4 +19,12 @@ export async function postJson<T>(url: string, body: unknown): Promise<T> {
     throw new Error(message);
   }
   return data as T;
+}
+
+export function postJson<T>(url: string, body: unknown): Promise<T> {
+  return requestJson<T>('POST', url, body);
+}
+
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

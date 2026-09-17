@@ -25,6 +25,20 @@ export interface ReplyRequest {
   readonly prompt: string;
 }
 
+/** A project the user added to the sidebar. */
+export interface SavedProject {
+  /** Normalized project path (see `projectKey`). */
+  readonly path: string;
+  /** Custom display name, or null to use the folder name. */
+  readonly label: string | null;
+}
+
+/** An entry of `GET /api/projects`. */
+export interface SavedProjectView extends SavedProject {
+  /** False when the folder has since been moved or deleted. */
+  readonly exists: boolean;
+}
+
 /** A Claude Code background agent, as reported by `claude agents --json --all`. */
 export interface ClaudeAgent {
   readonly id: string;

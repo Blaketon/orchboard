@@ -68,39 +68,62 @@ function card(agent: ClaudeAgent, options: BoardOptions): HTMLButtonElement {
   );
 }
 
+export interface ProjectListHandlers {
+  readonly onSelect: (key: string | null) => void;
+  readonly onRename: (project: Project) => void;
+  readonly onRemove: (project: Project) => void;
+}
+
 export function renderProjects(
   list: HTMLUListElement,
   projects: readonly Project[],
   total: number,
   selected: string | null,
-  onSelect: (key: string | null) => void,
+  handlers: ProjectListHandlers,
 ): void {
-  const item = (key: string | null, label: string, count: number) =>
-    el('li', {}, [
-      el(
-        'button',
-        {
-          className: 'project',
-          attrs: {
-            type: 'button',
-            'aria-current': String(selected === key),
-            ...(key ? { title: key } : {}),
-          },
-          on: {
-            click: () => {
-              onSelect(key);
-            },
+  const item = (project: Project | null) => {
+    const key = project?.key ?? null;
+    const select = el(
+      'button',
+      {
+        className: 'project',
+        attrs: {
+          type: 'button',
+          'aria-current': String(selected === key),
+          ...(key ? { title: key } : {}),
+        },
+        on: {
+          click: () => {
+            handlers.onSelect(key);
           },
         },
-        [
-          el('span', { className: 'project-label', text: label }),
-          el('span', { className: 'project-count', text: String(count) }),
-        ],
-      ),
-    ]);
+      },
+      [
+        el('span', { className: 'project-label', text: project?.label ?? 'All projects' }),
+        el('span', { className: 'project-count', text: String(project?.count ?? total) }),
+      ],
+    );
+    if (!project?.saved) return el('li', { className: 'project-item' }, [select]);
 
-  list.replaceChildren(
-    item(null, 'All projects', total),
-    ...projects.map((project) => item(project.key, project.label, project.count)),
-  );
+    const action = (text: string, label: string, run: () => void) =>
+      el('button', {
+        className: 'icon-button project-action',
+        text,
+        attrs: { type: 'button', 'aria-label': `${label} ${project.label}`, title: label },
+        on: { click: run },
+      });
+    return el('li', { className: 'project-item' }, [
+      select,
+      el('span', { className: 'project-actions' }, [
+        action('✎', 'Rename', () => {
+          handlers.onRename(project);
+        }),
+        action('×', 'Remove', () => {
+          handlers.onRemove(project);
+        }),
+      ]),
+    ]);
+  };
+
+  list.replaceChildren(item(null), ...projects.map(item));
 }

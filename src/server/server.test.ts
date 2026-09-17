@@ -62,7 +62,16 @@ describe('server', () => {
       },
     },
     actions,
+    projects: {
+      list: () => Promise.resolve([{ path: '/work', label: null, exists: true }]),
+      save: () => Promise.resolve([]),
+      remove: (projectPath) => {
+        removedProjects.push(projectPath);
+        return Promise.resolve([]);
+      },
+    },
   });
+  const removedProjects: string[] = [];
   let port = 0;
 
   before(async () => {
@@ -128,6 +137,18 @@ describe('server', () => {
       body: { error: 'This agent is not running.' },
     });
     assert.equal((await postJson('/api/agents/nope/reply', { prompt: 'Yes' })).status, 404);
+  });
+
+  it('lists saved projects and removes one by its path', async () => {
+    assert.deepEqual(await request('/api/projects'), {
+      status: 200,
+      body: [{ path: '/work', label: null, exists: true }],
+    });
+    const res = await request(`/api/projects?path=${encodeURIComponent('C:/Git/my app')}`, {
+      method: 'DELETE',
+    });
+    assert.equal(res.status, 200);
+    assert.deepEqual(removedProjects, ['C:/Git/my app']);
   });
 
   it('rejects action requests that are not JSON', async () => {

@@ -44,8 +44,8 @@ describe('listProjects', () => {
       agent({ cwd: '/w/acme/web/.claude/worktrees/x' }),
     ]);
     assert.deepEqual(projects, [
-      { key: '/w/zeta/api', label: 'api', count: 1 },
-      { key: '/w/acme/web', label: 'web', count: 2 },
+      { key: '/w/zeta/api', label: 'api', count: 1, saved: false },
+      { key: '/w/acme/web', label: 'web', count: 2, saved: false },
     ]);
   });
 
