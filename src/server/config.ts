@@ -12,6 +12,8 @@ export interface Config {
   readonly dataDir: string;
   /** Claude Code's config directory, which holds session transcripts. */
   readonly claudeDir: string;
+  /** Codex's home directory, which holds its session logs. */
+  readonly codexDir: string;
 }
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -25,6 +27,8 @@ export function loadConfig(env: Env = process.env, homeDir: string = os.homedir(
     dataDir: resolveDir(env.ORCHBOARD_DATA_DIR, path.join(homeDir, DATA_DIR_NAME)),
     // Same variable Claude Code itself uses to relocate its config directory.
     claudeDir: resolveDir(env.CLAUDE_CONFIG_DIR, path.join(homeDir, '.claude')),
+    // Same variable Codex itself uses.
+    codexDir: resolveDir(env.CODEX_HOME, path.join(homeDir, '.codex')),
   };
 }
 

@@ -12,6 +12,7 @@ describe('loadConfig', () => {
       host: DEFAULT_HOST,
       dataDir: path.join(home, DATA_DIR_NAME),
       claudeDir: path.join(home, '.claude'),
+      codexDir: path.join(home, '.codex'),
     });
   });
 
@@ -28,7 +29,7 @@ describe('loadConfig', () => {
         },
         home,
       ),
-      { port: 5000, host: '0.0.0.0', dataDir, claudeDir },
+      { port: 5000, host: '0.0.0.0', dataDir, claudeDir, codexDir: path.join(home, '.codex') },
     );
   });
 

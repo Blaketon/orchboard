@@ -8,6 +8,7 @@ import type { QueueStore } from './queue/queue-store.ts';
 import { isLoopbackHost, isTrustedRequest } from './security.ts';
 import { serveStatic, type StaticRoots } from './static-files.ts';
 import type { TranscriptSource } from './transcripts/transcript-reader.ts';
+import type { UsageService } from './usage/usage-service.ts';
 
 export interface ServerOptions {
   readonly host: string;
@@ -27,6 +28,7 @@ export interface ServerOptions {
     | 'removeTask'
     | 'start'
   >;
+  readonly usage: Pick<UsageService, 'report'>;
   /** Where the web app's files live. Without it, only the API is served. */
   readonly staticRoots?: StaticRoots;
   /** How often idle event streams send a comment so proxies don't drop them. */
@@ -103,6 +105,13 @@ export function createServer(options: ServerOptions): http.Server {
         const projectPath = new URL(req.url ?? '/', 'http://localhost').searchParams.get('path');
         if (!projectPath) throw new HttpError(400, 'Missing project path.');
         sendJson(res, 200, await options.projects.remove(projectPath));
+      },
+    },
+    {
+      method: 'GET',
+      path: '/api/usage',
+      handler: async (_req, res) => {
+        sendJson(res, 200, await options.usage.report());
       },
     },
     {

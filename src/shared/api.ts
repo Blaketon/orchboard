@@ -59,6 +59,28 @@ export interface QueuedTask {
   readonly createdAt: number;
 }
 
+/** One rate-limit window, e.g. Claude's 5-hour session limit. */
+export interface UsageWindow {
+  readonly id: string;
+  readonly label: string;
+  /** Percent of the limit used, 0 to 100. */
+  readonly utilization: number;
+  /** ISO timestamp when the window resets, if known. */
+  readonly resetsAt: string | null;
+}
+
+export interface UsageSource {
+  readonly windows: readonly UsageWindow[];
+  /** Why usage is unavailable, e.g. not logged in. Windows from an earlier success are kept. */
+  readonly error: string | null;
+}
+
+/** `GET /api/usage`. */
+export interface UsageReport {
+  readonly claude: UsageSource;
+  readonly codex: UsageSource;
+}
+
 /** `GET /api/queue`. Columns and tasks are listed in display order. */
 export interface QueueState {
   readonly columns: readonly QueueColumn[];

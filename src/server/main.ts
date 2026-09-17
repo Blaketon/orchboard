@@ -8,6 +8,7 @@ import { QueueStore } from './queue/queue-store.ts';
 import { isLoopbackHost } from './security.ts';
 import { createServer } from './server.ts';
 import { TranscriptReader } from './transcripts/transcript-reader.ts';
+import { UsageService } from './usage/usage-service.ts';
 
 let config: Config;
 try {
@@ -26,6 +27,7 @@ const server = createServer({
   actions,
   projects: new ProjectsStore(config.dataDir),
   queue: new QueueStore(config.dataDir, actions),
+  usage: new UsageService({ claudeDir: config.claudeDir, codexDir: config.codexDir }),
   // Two levels up from both src/server (development) and dist/server (built).
   staticRoots: {
     publicDir: path.resolve(import.meta.dirname, '..', '..', 'public'),

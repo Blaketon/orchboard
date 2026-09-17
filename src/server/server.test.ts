@@ -77,6 +77,13 @@ describe('server', () => {
       },
     },
     queue: new QueueStore(queueDir, actions),
+    usage: {
+      report: () =>
+        Promise.resolve({
+          claude: { windows: [], error: 'Not logged in to Claude Code.' },
+          codex: { windows: [], error: null },
+        }),
+    },
   });
   const removedProjects: string[] = [];
   let port = 0;
