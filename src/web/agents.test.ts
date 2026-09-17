@@ -45,9 +45,26 @@ describe('listProjects', () => {
       agent({ cwd: '/w/acme/web/.claude/worktrees/x' }),
     ]);
     assert.deepEqual(projects, [
-      { key: '/w/zeta/api', label: 'api', count: 1, saved: false },
-      { key: '/w/acme/web', label: 'web', count: 2, saved: false },
+      { key: '/w/zeta/api', label: 'api', count: 1, saved: false, pinned: false },
+      { key: '/w/acme/web', label: 'web', count: 2, saved: false, pinned: false },
     ]);
+  });
+
+  it('lists pinned projects first', () => {
+    const projects = listProjects(
+      [agent({ cwd: '/w/acme/web' }), agent({ cwd: '/w/zeta/api' })],
+      [
+        { path: '/w/zeta/api', label: null, pinned: true },
+        { path: '/w/acme/web', label: null },
+      ],
+    );
+    assert.deepEqual(
+      projects.map((project) => [project.label, project.pinned]),
+      [
+        ['api', true],
+        ['web', false],
+      ],
+    );
   });
 
   it('adds the parent folder when two repositories share a name', () => {

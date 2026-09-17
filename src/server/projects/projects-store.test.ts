@@ -30,13 +30,32 @@ describe('ProjectsStore', () => {
   it('adds a project under its normalized path, once', async () => {
     await store.save({ path: `${project}${path.sep}` });
     const projects = await store.save({ path: project, label: 'Shop' });
-    assert.deepEqual(projects, [{ path: projectKey(project), label: 'Shop', exists: true }]);
+    assert.deepEqual(projects, [
+      { path: projectKey(project), label: 'Shop', pinned: false, exists: true },
+    ]);
   });
 
   it('clears a label when it is saved blank', async () => {
     await store.save({ path: project, label: 'Shop' });
     const [saved] = await store.save({ path: project, label: '  ' });
     assert.equal(saved?.label, null);
+  });
+
+  it('pins a project without losing its name, and unpins it again', async () => {
+    await store.save({ path: project, label: 'Shop' });
+    const [pinned] = await store.save({ path: project, pinned: true });
+    assert.ok(pinned);
+    assert.equal(pinned.pinned, true);
+    assert.equal(pinned.label, 'Shop');
+
+    const [renamed] = await store.save({ path: project, label: 'Storefront' });
+    assert.ok(renamed);
+    assert.equal(renamed.pinned, true);
+
+    const [unpinned] = await store.save({ path: project, pinned: false });
+    assert.ok(unpinned);
+    assert.equal(unpinned.pinned, false);
+    assert.equal(unpinned.label, 'Storefront');
   });
 
   it('removes a project', async () => {

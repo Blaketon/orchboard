@@ -19,6 +19,8 @@ export interface StartTaskRequest {
   readonly name?: string;
   /** A Claude Code mode, or a Codex mode for Codex tasks. */
   readonly permissionMode?: PermissionMode | CodexPermissionMode;
+  /** Model to run the task with, e.g. `opus`. Unset means the agent's own default. */
+  readonly model?: string;
   /** Ids of uploaded attachments the agent should look at. */
   readonly images?: readonly string[];
 }
@@ -61,6 +63,8 @@ export interface SavedProject {
   readonly path: string;
   /** Custom display name, or null to use the folder name. */
   readonly label: string | null;
+  /** Pinned projects come first in the sidebar. Missing in projects saved by older versions. */
+  readonly pinned?: boolean;
 }
 
 /** An entry of `GET /api/projects`. */
@@ -88,6 +92,8 @@ export interface QueuedTask {
   readonly cwd: string;
   readonly prompt: string;
   readonly permissionMode: PermissionMode | CodexPermissionMode;
+  /** Model for the task, as in `StartTaskRequest.model`. */
+  readonly model?: string;
   /** Attachment ids, as in `StartTaskRequest.images`. Missing in queues saved by older versions. */
   readonly images?: readonly string[];
   readonly createdAt: number;

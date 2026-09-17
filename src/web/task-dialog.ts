@@ -29,6 +29,19 @@ const MODE_KEYS: Readonly<Record<AgentProvider, string>> = {
   claude: 'orchboard-permission-mode',
   codex: 'orchboard-codex-permission-mode',
 };
+const MODEL_KEYS: Readonly<Record<AgentProvider, string>> = {
+  claude: 'orchboard-model',
+  codex: 'orchboard-codex-model',
+};
+
+/**
+ * Model names to suggest. Both CLIs accept a model name or alias and fall back to their own
+ * configured default, so the field stays free text; these are only shortcuts.
+ */
+export const MODEL_SUGGESTIONS: Readonly<Record<AgentProvider, readonly string[]>> = {
+  claude: ['opus', 'sonnet', 'haiku', 'fable'],
+  codex: [],
+};
 
 /** The permission choices for an agent. */
 export function modesFor(provider: AgentProvider): readonly { value: Mode; label: string }[] {
@@ -96,6 +109,18 @@ export function createTaskDialog(options: {
     ),
   );
   const mode = el('select', { className: 'field-input', attrs: { name: 'permissionMode' } });
+  const modelOptions = el('datalist', { attrs: { id: 'model-suggestions' } });
+  const model = el('input', {
+    className: 'field-input',
+    attrs: {
+      name: 'model',
+      list: 'model-suggestions',
+      placeholder: 'Default',
+      autocomplete: 'off',
+      spellcheck: 'false',
+      maxlength: '80',
+    },
+  });
   const images = createAttachmentPicker();
   images.listenOn(prompt);
   const error = el('p', { className: 'form-error', attrs: { role: 'alert' } });
@@ -113,9 +138,11 @@ export function createTaskDialog(options: {
       images.element,
     ]),
     el('div', { className: 'field-row' }, [field('Agent', agent), field('Permissions', mode)]),
+    field('Model', model, "Leave empty for the agent's own default"),
     error,
     el('div', { className: 'form-actions' }, [cancel, submit]),
     suggestions,
+    modelOptions,
   ]);
   const dialog = el(
     'dialog',
@@ -134,7 +161,7 @@ export function createTaskDialog(options: {
 
   const currentProvider = (): AgentProvider => (agent.value === 'codex' ? 'codex' : 'claude');
 
-  function setProvider(provider: AgentProvider, selected: unknown): void {
+  function setProvider(provider: AgentProvider, selected: unknown, chosenModel: string): void {
     agent.value = provider;
     mode.replaceChildren(
       ...modesFor(provider).map((option) =>
@@ -142,11 +169,16 @@ export function createTaskDialog(options: {
       ),
     );
     mode.value = modeFor(provider, selected);
+    modelOptions.replaceChildren(
+      ...MODEL_SUGGESTIONS[provider].map((value) => el('option', { attrs: { value } })),
+    );
+    model.value = chosenModel;
   }
 
   agent.addEventListener('change', () => {
     const provider = currentProvider();
-    setProvider(provider, stored(MODE_KEYS[provider]));
+    // Each agent has its own models, so switching brings up that agent's last choice.
+    setProvider(provider, stored(MODE_KEYS[provider]), stored(MODEL_KEYS[provider]) ?? '');
   });
   cancel.addEventListener('click', () => {
     dialog.close();
@@ -173,6 +205,7 @@ export function createTaskDialog(options: {
       prompt: prompt.value,
       name: name.value.trim(),
       permissionMode,
+      model: model.value.trim(),
       images: images.ids(),
     };
     const labels = LABELS[target.kind];
@@ -205,6 +238,7 @@ export function createTaskDialog(options: {
       }
       remember(PROVIDER_KEY, provider);
       remember(MODE_KEYS[provider], permissionMode);
+      remember(MODEL_KEYS[provider], fields.model);
       dialog.close();
     } catch (caught) {
       error.textContent = caught instanceof Error ? caught.message : String(caught);
@@ -223,6 +257,7 @@ export function createTaskDialog(options: {
       prompt: string;
       provider: AgentProvider;
       mode: unknown;
+      model: string;
       images: readonly string[];
     },
   ) {
@@ -236,17 +271,24 @@ export function createTaskDialog(options: {
     cwd.value = values.cwd;
     name.value = values.name;
     prompt.value = values.prompt;
-    setProvider(values.provider, values.mode);
+    setProvider(values.provider, values.mode, values.model);
     images.reset(values.images);
     error.hidden = true;
     dialog.showModal();
     (cwd.value ? prompt : cwd).focus();
   }
 
-  /** A new task starts with the agent and mode used last time. */
+  /** A new task starts with the agent, mode, and model used last time. */
   const fresh = () => {
     const provider: AgentProvider = stored(PROVIDER_KEY) === 'codex' ? 'codex' : 'claude';
-    return { name: '', prompt: '', provider, mode: stored(MODE_KEYS[provider]), images: [] };
+    return {
+      name: '',
+      prompt: '',
+      provider,
+      mode: stored(MODE_KEYS[provider]),
+      model: stored(MODEL_KEYS[provider]) ?? '',
+      images: [],
+    };
   };
 
   return {
@@ -265,6 +307,7 @@ export function createTaskDialog(options: {
           prompt: task.prompt,
           provider: task.provider ?? 'claude',
           mode: task.permissionMode,
+          model: task.model ?? '',
           images: task.images ?? [],
         },
       );

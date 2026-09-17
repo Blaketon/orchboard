@@ -113,6 +113,14 @@ describe('claude actions', () => {
       ]);
     });
 
+    it('passes a chosen model to the CLI', async () => {
+      const { calls, run } = recorder();
+      await createClaudeActions({ run }).start(
+        task({ cwd: project, prompt: 'Try opus', name: 'Models', model: 'opus' }),
+      );
+      assert.deepEqual(calls[0]?.args.slice(0, 5), ['--bg', '--name', 'Models', '--model', 'opus']);
+    });
+
     it('checks that the project folder exists before running anything', async () => {
       const { calls, run } = recorder();
       await rejectsWithStatus(

@@ -25,7 +25,10 @@ export class ProjectsStore {
     );
   }
 
-  /** Adds a project, or updates the label of one that is already saved. */
+  /**
+   * Adds a project, or updates one that is already saved. Only the fields in the request
+   * change, so pinning keeps the project's name and renaming keeps its pin.
+   */
   async save(request: unknown): Promise<SavedProjectView[]> {
     if (
       !isRecord(request) ||
@@ -38,16 +41,29 @@ export class ProjectsStore {
     if (!(await isDirectory(key)))
       throw new HttpError(400, `Folder not found: ${request.path.trim()}`);
 
-    const rawLabel = typeof request.label === 'string' ? request.label.trim() : '';
-    if (rawLabel.length > MAX_LABEL_CHARS) {
-      throw new HttpError(400, `Project names can be at most ${MAX_LABEL_CHARS} characters.`);
+    let label: string | null | undefined;
+    if (request.label !== undefined) {
+      const raw = typeof request.label === 'string' ? request.label.trim() : '';
+      if (raw.length > MAX_LABEL_CHARS) {
+        throw new HttpError(400, `Project names can be at most ${MAX_LABEL_CHARS} characters.`);
+      }
+      label = raw || null;
     }
-    const label = rawLabel || null;
+    if (request.pinned !== undefined && typeof request.pinned !== 'boolean') {
+      throw new HttpError(400, 'Expected pinned to be true or false.');
+    }
+    const { pinned } = request;
 
     await this.#store.update((projects) => {
-      const existing = projects.findIndex((project) => project.path === key);
-      if (existing === -1) return [...projects, { path: key, label }];
-      return projects.map((project, i) => (i === existing ? { ...project, label } : project));
+      const existing = projects.find((project) => project.path === key);
+      const saved: SavedProject = {
+        path: key,
+        label: label === undefined ? (existing?.label ?? null) : label,
+        pinned: pinned ?? existing?.pinned ?? false,
+      };
+      return existing
+        ? projects.map((project) => (project.path === key ? saved : project))
+        : [...projects, saved];
     });
     return this.list();
   }
@@ -66,7 +82,8 @@ function isSavedProjectList(value: unknown): value is SavedProject[] {
       (item) =>
         isRecord(item) &&
         typeof item.path === 'string' &&
-        (item.label === null || typeof item.label === 'string'),
+        (item.label === null || typeof item.label === 'string') &&
+        (item.pinned === undefined || typeof item.pinned === 'boolean'),
     )
   );
 }

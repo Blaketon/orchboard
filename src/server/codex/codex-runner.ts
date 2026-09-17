@@ -38,6 +38,8 @@ export interface CodexTask {
   readonly threadId: string | null;
   readonly rolloutPath: string | null;
   readonly permissionMode: CodexPermissionMode;
+  /** Model override for this thread, or null for the one in Codex config. */
+  readonly model?: string | null;
   readonly state: AgentState;
   readonly startedAt: number;
   readonly error: string | null;
@@ -136,6 +138,7 @@ export class CodexRunner {
       threadId: null,
       rolloutPath: null,
       permissionMode: mode,
+      model: request.model ?? null,
       state: 'working',
       startedAt: (this.#options.now ?? Date.now)(),
       error: null,
@@ -269,14 +272,20 @@ export class CodexRunner {
 
     try {
       const policy = CODEX_POLICIES[initial.permissionMode];
+      const model = initial.model ?? undefined;
       const opened = initial.threadId
         ? await client.request('thread/resume', {
             threadId: initial.threadId,
             cwd: initial.cwd,
             ...policy,
+            ...(model === undefined ? {} : { model }),
             excludeTurns: true,
           })
-        : await client.request('thread/start', { cwd: initial.cwd, ...policy });
+        : await client.request('thread/start', {
+            cwd: initial.cwd,
+            ...policy,
+            ...(model === undefined ? {} : { model }),
+          });
       const thread = isRecord(opened) && isRecord(opened.thread) ? opened.thread : {};
       if (typeof thread.id !== 'string') throw new AppServerError('Codex did not open a thread.');
       await this.#update(id, {
@@ -438,6 +447,7 @@ function isTaskList(value: unknown): value is CodexTask[] {
         (item.threadId === null || typeof item.threadId === 'string') &&
         (item.rolloutPath === null || typeof item.rolloutPath === 'string') &&
         isCodexPermissionMode(item.permissionMode) &&
+        (item.model === undefined || item.model === null || typeof item.model === 'string') &&
         (item.state === 'working' || item.state === 'blocked' || item.state === 'done') &&
         typeof item.startedAt === 'number' &&
         (item.error === null || typeof item.error === 'string'),

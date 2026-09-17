@@ -269,6 +269,18 @@ function renameProject(project: Project): void {
   });
 }
 
+async function togglePin(project: Project): Promise<void> {
+  try {
+    savedProjects = await requestJson<SavedProjectView[]>('POST', '/api/projects', {
+      path: project.key,
+      pinned: !project.pinned,
+    });
+    render();
+  } catch (error) {
+    showToast(errorMessage(error), 'error');
+  }
+}
+
 async function removeProject(project: Project): Promise<void> {
   const confirmed = await confirmDialog({
     title: 'Remove project?',
@@ -303,6 +315,7 @@ function render(): void {
     },
     onRename: renameProject,
     onRemove: (project) => void removeProject(project),
+    onTogglePin: (project) => void togglePin(project),
   });
 
   hidden.prune(new Set(snapshot.agents.map((agent) => agent.id)));

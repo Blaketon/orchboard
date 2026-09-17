@@ -49,6 +49,15 @@ describe('parseTaskRequest', () => {
     );
   });
 
+  it('passes a model through, and rejects a suspicious one', () => {
+    assert.equal(parseTaskRequest({ cwd: CWD, prompt: 'x', model: ' opus ' }).model, 'opus');
+    assert.equal(parseTaskRequest({ cwd: CWD, prompt: 'x', model: '  ' }).model, undefined);
+    assert.equal(
+      statusOf(() => parseTaskRequest({ cwd: CWD, prompt: 'x', model: '--dangerous' })),
+      400,
+    );
+  });
+
   it('rejects invalid requests', () => {
     assert.equal(
       statusOf(() => parseTaskRequest({ cwd: 'relative/path', prompt: 'x' })),

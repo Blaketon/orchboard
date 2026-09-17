@@ -96,6 +96,8 @@ export interface ProjectListHandlers {
   readonly onSelect: (key: string | null) => void;
   readonly onRename: (project: Project) => void;
   readonly onRemove: (project: Project) => void;
+  /** Pins or unpins the project, keeping it at the top of the list. */
+  readonly onTogglePin: (project: Project) => void;
 }
 
 export function renderProjects(
@@ -127,7 +129,7 @@ export function renderProjects(
         el('span', { className: 'project-count', text: String(project?.count ?? total) }),
       ],
     );
-    if (!project?.saved) return el('li', { className: 'project-item' }, [select]);
+    if (!project) return el('li', { className: 'project-item' }, [select]);
 
     const action = (text: string, label: string, run: () => void) =>
       el('button', {
@@ -136,16 +138,35 @@ export function renderProjects(
         attrs: { type: 'button', 'aria-label': `${label} ${project.label}`, title: label },
         on: { click: run },
       });
+    // Starring a project that was only on the board because of its agents also saves it.
+    const star = el('button', {
+      className: 'icon-button project-star',
+      text: project.pinned ? '★' : '☆',
+      attrs: {
+        type: 'button',
+        'aria-pressed': String(project.pinned),
+        'aria-label': `${project.pinned ? 'Unpin' : 'Pin'} ${project.label}`,
+        title: project.pinned ? 'Unpin' : 'Pin to the top',
+      },
+      on: {
+        click: () => {
+          handlers.onTogglePin(project);
+        },
+      },
+    });
     return el('li', { className: 'project-item' }, [
+      star,
       select,
-      el('span', { className: 'project-actions' }, [
-        action('✎', 'Rename', () => {
-          handlers.onRename(project);
-        }),
-        action('×', 'Remove', () => {
-          handlers.onRemove(project);
-        }),
-      ]),
+      project.saved
+        ? el('span', { className: 'project-actions' }, [
+            action('✎', 'Rename', () => {
+              handlers.onRename(project);
+            }),
+            action('×', 'Remove', () => {
+              handlers.onRemove(project);
+            }),
+          ])
+        : null,
     ]);
   };
 

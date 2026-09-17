@@ -11,6 +11,8 @@ export interface Project {
   readonly count: number;
   /** True when the user added the project, so it can be renamed or removed. */
   readonly saved: boolean;
+  /** Pinned projects are listed first. */
+  readonly pinned: boolean;
 }
 
 export const AGENT_LABELS: Readonly<Record<AgentProvider, string>> = {
@@ -35,7 +37,7 @@ export function listProjects(
     const key = projectKey(agent.cwd);
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
-  const savedLabels = new Map(saved.map((project) => [projectKey(project.path), project.label]));
+  const savedProjects = new Map(saved.map((project) => [projectKey(project.path), project]));
 
   // Two repositories with the same folder name get their parent folder added to tell them apart.
   const nameCounts = new Map<string, number>();
@@ -49,14 +51,16 @@ export function listProjects(
       const name = projectLabel(key);
       const fallback =
         (nameCounts.get(name) ?? 0) > 1 ? key.split('/').filter(Boolean).slice(-2).join('/') : name;
+      const savedProject = savedProjects.get(key);
       return {
         key,
-        label: savedLabels.get(key) ?? fallback,
+        label: savedProject?.label ?? fallback,
         count,
-        saved: savedLabels.has(key),
+        saved: savedProject !== undefined,
+        pinned: savedProject?.pinned === true,
       };
     })
-    .sort((a, b) => a.label.localeCompare(b.label));
+    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.label.localeCompare(b.label));
 }
 
 export interface AgentFilter {

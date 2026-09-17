@@ -70,6 +70,7 @@ export class QueueStore {
       prompt: task.prompt,
       name: task.name,
       permissionMode: task.permissionMode,
+      ...(task.model === undefined ? {} : { model: task.model }),
       images: task.images ?? [],
     });
     // Tolerate the task having been removed meanwhile; the agent is already running.

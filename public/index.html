@@ -31,10 +31,41 @@
           </div>
           <ul id="project-list" class="project-list"></ul>
         </nav>
-        <section id="usage" class="usage-widget" aria-label="Plan usage" hidden></section>
         <div class="sidebar-footer">
-          <button id="open-skills" class="button button-quiet" type="button">Skills</button>
-          <button id="open-settings" class="button button-quiet" type="button">Settings</button>
+          <button id="open-skills" class="button button-quiet" type="button">
+            <svg
+              class="button-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 3.5 13.9 9l5.6 2-5.6 2L12 18.5 10.1 13 4.5 11l5.6-2z" />
+              <path d="M18.5 3.5v3M17 5h3" />
+            </svg>
+            Skills
+          </button>
+          <button id="open-settings" class="button button-quiet" type="button">
+            <svg
+              class="button-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"
+              />
+            </svg>
+            Settings
+          </button>
         </div>
       </aside>
 
@@ -81,6 +112,7 @@
         <div id="docs" class="board docs" hidden></div>
       </main>
     </div>
+    <section id="usage" class="usage-widget" aria-label="Plan usage" hidden></section>
     <noscript><p class="noscript">Orchboard needs JavaScript enabled.</p></noscript>
   </body>
 </html>

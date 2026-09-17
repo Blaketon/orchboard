@@ -65,10 +65,11 @@ export function createClaudeActions(options: ClaudeActionsOptions = {}): ClaudeA
   }
 
   return {
-    async start({ cwd, prompt, name, permissionMode, images }) {
+    async start({ cwd, prompt, name, permissionMode, model, images }) {
       await assertDirectory(cwd);
       const args = ['--bg', '--name', name];
       if (permissionMode) args.push('--permission-mode', permissionMode);
+      if (model) args.push('--model', model);
       let fullPrompt = prompt;
       if (images.length) {
         if (!attachments) throw new HttpError(400, 'Image attachments are not available.');

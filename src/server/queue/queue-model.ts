@@ -3,6 +3,7 @@ import type { QueueColumn, QueuedTask, QueueState } from '../../shared/api.ts';
 import { projectKey } from '../../shared/projects.ts';
 import { isCodexPermissionMode, isPermissionMode } from '../../shared/permission-modes.ts';
 import {
+  parseModel,
   parseName,
   parsePermissionMode,
   parsePrompt,
@@ -59,6 +60,7 @@ export function addTask(state: QueueState, request: unknown, id: string, now: nu
   const column = findColumn(state, request.columnId);
   const prompt = parsePrompt(request.prompt);
   const provider = parseProvider(request.provider);
+  const model = parseModel(request.model);
   const task: QueuedTask = {
     id,
     columnId: column.id,
@@ -67,6 +69,7 @@ export function addTask(state: QueueState, request: unknown, id: string, now: nu
     cwd: taskCwd(request.cwd, column.project),
     prompt,
     permissionMode: parsePermissionMode(provider, request.permissionMode),
+    ...(model === undefined ? {} : { model }),
     images: parseAttachmentIds(request.images),
     createdAt: now,
   };
@@ -82,13 +85,18 @@ export function updateTask(state: QueueState, id: string, request: unknown): Que
   // Switching agents without choosing a mode falls back to the new agent's default.
   const mode =
     request.permissionMode ?? (provider === oldProvider ? task.permissionMode : undefined);
+  const model = request.model === undefined ? task.model : parseModel(request.model);
+  // Built field by field rather than spread, so clearing the model really clears it.
   const updated: QueuedTask = {
-    ...task,
+    id: task.id,
+    columnId: task.columnId,
+    createdAt: task.createdAt,
     prompt,
     name: request.name === undefined ? task.name : parseName(request.name, prompt),
     provider,
     cwd: request.cwd === undefined ? task.cwd : taskCwd(request.cwd, task.cwd),
     permissionMode: parsePermissionMode(provider, mode),
+    ...(model === undefined ? {} : { model }),
     images: request.images === undefined ? (task.images ?? []) : parseAttachmentIds(request.images),
   };
   return { ...state, tasks: state.tasks.map((item) => (item.id === id ? updated : item)) };
@@ -180,6 +188,7 @@ export function isQueueState(value: unknown): value is QueueState {
           ? isCodexPermissionMode(task.permissionMode)
           : (task.provider === undefined || task.provider === 'claude') &&
             isPermissionMode(task.permissionMode)) &&
+        (task.model === undefined || typeof task.model === 'string') &&
         (task.images === undefined ||
           (Array.isArray(task.images) && task.images.every(isAttachmentId))) &&
         typeof task.createdAt === 'number',

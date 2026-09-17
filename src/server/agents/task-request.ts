@@ -14,6 +14,8 @@ import { HttpError, isRecord } from '../http-error.ts';
 
 export const MAX_PROMPT_CHARS = 100_000;
 export const MAX_NAME_CHARS = 120;
+// Model names and aliases only, so nothing odd reaches a command line or the app server.
+const MODEL_NAME = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,79}$/;
 
 /** A validated request to start a task with either agent. */
 export interface TaskRequest {
@@ -23,6 +25,8 @@ export interface TaskRequest {
   readonly name: string;
   /** Unset means the agent's own default. */
   readonly permissionMode?: PermissionMode | CodexPermissionMode;
+  /** Unset means the agent picks its configured model. */
+  readonly model?: string;
   readonly images: string[];
 }
 
@@ -38,6 +42,7 @@ export function parseTaskRequest(request: unknown): TaskRequest {
     request.permissionMode === undefined
       ? undefined
       : parsePermissionMode(provider, request.permissionMode);
+  const model = parseModel(request.model);
   return {
     provider,
     cwd: cwd.trim(),
@@ -45,6 +50,7 @@ export function parseTaskRequest(request: unknown): TaskRequest {
     name: parseName(request.name, prompt),
     images: parseAttachmentIds(request.images),
     ...(permissionMode === undefined ? {} : { permissionMode }),
+    ...(model === undefined ? {} : { model }),
   };
 }
 
@@ -64,6 +70,14 @@ export function parsePermissionMode(
   const valid = provider === 'codex' ? isCodexPermissionMode(value) : isPermissionMode(value);
   if (!valid) throw new HttpError(400, 'Unknown permission mode.');
   return value as PermissionMode | CodexPermissionMode;
+}
+
+/** A model name or alias, e.g. `opus` or `claude-opus-5`. Blank means the agent's default. */
+export function parseModel(value: unknown): string | undefined {
+  const model = typeof value === 'string' ? value.trim() : '';
+  if (!model) return undefined;
+  if (!MODEL_NAME.test(model)) throw new HttpError(400, `Unknown model name: ${model}`);
+  return model;
 }
 
 export function parsePrompt(value: unknown): string {

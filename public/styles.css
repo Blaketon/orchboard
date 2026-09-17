@@ -182,6 +182,17 @@ textarea {
   opacity: 0.55;
 }
 
+.button-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.button-quiet {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
 .button-primary {
   border-color: var(--accent);
   background: var(--accent);
@@ -909,6 +920,9 @@ textarea {
 
 .project-item {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .project-actions {
@@ -924,6 +938,25 @@ textarea {
 .project-item:hover .project-actions,
 .project-item:focus-within .project-actions {
   display: flex;
+}
+
+/* The star sits outside the row button, so clicking it never selects the project. */
+.project-star {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  font-size: 13px;
+  opacity: 0.3;
+}
+
+.project-item:hover .project-star,
+.project-item:focus-within .project-star,
+.project-star[aria-pressed='true'] {
+  opacity: 1;
+}
+
+.project-star[aria-pressed='true'] {
+  color: var(--working);
 }
 
 .modal-small {
@@ -1110,19 +1143,30 @@ textarea {
 
 /* ---------- Usage widget ---------- */
 
+/* An overlay in the bottom right corner: above the board, below modals. */
 .usage-widget {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: auto;
+  width: 232px;
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--bg);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
+  backdrop-filter: blur(6px);
 }
 
-.usage-widget:not([hidden]) + .sidebar-footer {
-  margin-top: 0;
+@media (width <= 900px) {
+  .usage-widget {
+    right: 12px;
+    bottom: 12px;
+    width: 200px;
+  }
 }
 
 .usage-source {
