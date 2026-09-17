@@ -14,3 +14,7 @@ Thumbs.db
 # Personal agent instructions
 CLAUDE.local.md
 AGENTS.override.md
+
+# Build output
+dist/
+coverage/
