@@ -13,6 +13,10 @@ export interface Settings {
   readonly soundOnBlocked: boolean;
   /** 0 to 1. */
   readonly volume: number;
+  /** Show Claude and Codex plan limits in the sidebar. */
+  readonly showUsage: boolean;
+  /** Notify when a plan limit nears 90% or resets. */
+  readonly usageAlerts: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -24,6 +28,8 @@ export const DEFAULT_SETTINGS: Settings = {
   soundOnDone: true,
   soundOnBlocked: false,
   volume: 0.6,
+  showUsage: true,
+  usageAlerts: true,
 };
 
 const STORAGE_KEY = 'orchboard-settings';
@@ -49,6 +55,8 @@ export function parseSettings(raw: unknown): Settings {
     soundOnDone: bool('soundOnDone'),
     soundOnBlocked: bool('soundOnBlocked'),
     volume: number('volume', 0, 1),
+    showUsage: bool('showUsage'),
+    usageAlerts: bool('usageAlerts'),
   };
 }
 

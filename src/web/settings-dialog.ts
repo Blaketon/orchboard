@@ -107,6 +107,10 @@ export function createSettingsDialog(store: SettingsStore): { open(): void } {
             toastSeconds,
           ]),
         ]),
+        section('Usage limits', [
+          checkbox('showUsage', 'Show Claude and Codex plan limits in the sidebar'),
+          checkbox('usageAlerts', 'Notify when a limit reaches 90% or resets'),
+        ]),
         section('Sound', [
           checkbox('soundOnDone', 'Chime when an agent completes'),
           checkbox('soundOnBlocked', 'Chime when an agent needs input'),

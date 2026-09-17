@@ -1107,3 +1107,75 @@ textarea {
 .toast-button:hover {
   background: var(--surface-2);
 }
+
+/* ---------- Usage widget ---------- */
+
+.usage-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: auto;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.usage-widget:not([hidden]) + .sidebar-footer {
+  margin-top: 0;
+}
+
+.usage-source {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.usage-heading {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.usage-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px 8px;
+  font-size: 12px;
+}
+
+.usage-percent {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.usage-bar {
+  grid-column: 1 / -1;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+.usage-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.usage-fill[data-level='medium'] {
+  background: var(--working);
+}
+
+.usage-fill[data-level='high'] {
+  background: var(--blocked);
+}
+
+.usage-error {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}

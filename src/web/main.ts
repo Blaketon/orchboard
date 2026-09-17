@@ -14,6 +14,7 @@ import { createSettingsDialog } from './settings-dialog.ts';
 import { SettingsStore } from './settings-store.ts';
 import { unlockAudioOnInteraction } from './sound.ts';
 import { applyTheme } from './theme.ts';
+import { createUsageWidget } from './usage-widget.ts';
 import { showToast } from './toast.ts';
 
 const CONNECTION_LABELS: Readonly<Record<ConnectionState, string>> = {
@@ -64,6 +65,7 @@ byId('open-settings', 'button').addEventListener('click', () => {
   settingsDialog.open();
 });
 unlockAudioOnInteraction();
+createUsageWidget(byId('usage', 'section'), settings);
 
 const notifier = createNotifier({
   settings: () => settings.get(),
