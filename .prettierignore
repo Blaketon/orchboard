@@ -1,0 +1,4 @@
+dist/
+coverage/
+graphify-out/
+package-lock.json
