@@ -27,10 +27,10 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "dev": "node --watch src/server/main.ts",
-    "build": "tsc -p tsconfig.build.json",
+    "dev": "node scripts/dev.ts",
+    "build": "tsc -p tsconfig.build.json && tsc -p src/web/tsconfig.build.json",
     "start": "node dist/server/main.js",
-    "typecheck": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json && tsc -p src/web/tsconfig.json",
     "test": "node --test \"src/**/*.test.ts\"",
     "lint": "eslint .",
     "format": "prettier --write .",

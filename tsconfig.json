@@ -1,10 +1,8 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist",
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["src"]
+  "include": ["src/server", "src/shared", "scripts"]
 }

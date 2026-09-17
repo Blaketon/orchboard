@@ -1,24 +1,7 @@
 import fs from 'node:fs/promises';
+import type { SessionUsage, TokenTotals } from '../../shared/api.ts';
 
-export interface TokenTotals {
-  readonly input: number;
-  readonly output: number;
-  readonly cacheCreation: number;
-  readonly cacheRead: number;
-}
-
-export interface SessionUsage {
-  readonly tokens: TokenTotals;
-  /** Tokens sent with the latest main-conversation request: how full the context window is. */
-  readonly contextTokens: number;
-  readonly contextWindow: number;
-  /** Model of the latest response, e.g. `claude-opus-5`. */
-  readonly model: string | null;
-  /** Claude Code's own running cost record for the session, in USD. Null until it writes one. */
-  readonly costUsd: number | null;
-  /** True when the session has done more work since Claude Code last recorded its cost. */
-  readonly costIsPartial: boolean;
-}
+export type { SessionUsage, TokenTotals };
 
 export const STANDARD_CONTEXT_WINDOW = 200_000;
 export const EXTENDED_CONTEXT_WINDOW = 1_000_000;

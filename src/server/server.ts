@@ -1,12 +1,15 @@
 import http from 'node:http';
 import type { AgentFeed, AgentSnapshot } from './agents/agent-monitor.ts';
 import { isLoopbackHost, isTrustedRequest } from './security.ts';
+import { serveStatic, type StaticRoots } from './static-files.ts';
 import type { TranscriptSource } from './transcripts/transcript-reader.ts';
 
 export interface ServerOptions {
   readonly host: string;
   readonly agents: AgentFeed;
   readonly transcripts: TranscriptSource;
+  /** Where the web app's files live. Without it, only the API is served. */
+  readonly staticRoots?: StaticRoots;
   /** How often idle event streams send a comment so proxies don't drop them. */
   readonly keepAliveMs?: number;
 }
@@ -67,7 +70,7 @@ export function createServer(options: ServerOptions): http.Server {
     },
   ];
 
-  return http.createServer((req, res) => {
+  const handle = async (req: http.IncomingMessage, res: http.ServerResponse): Promise<void> => {
     if (!isTrustedRequest(req.headers, trust)) {
       sendJson(res, 403, { error: 'Forbidden' });
       return;
@@ -75,18 +78,26 @@ export function createServer(options: ServerOptions): http.Server {
 
     const { pathname } = new URL(req.url ?? '/', 'http://localhost');
     const match = matchRoute(routes, req.method ?? '', pathname);
-    if (!match) {
-      sendJson(res, 404, { error: 'Not found' });
+    if (match) {
+      await match.route.handler(req, res, match.params);
       return;
     }
+    if (
+      options.staticRoots &&
+      !pathname.startsWith('/api/') &&
+      (await serveStatic(req, res, pathname, options.staticRoots))
+    ) {
+      return;
+    }
+    sendJson(res, 404, { error: 'Not found' });
+  };
 
-    Promise.resolve()
-      .then(() => match.route.handler(req, res, match.params))
-      .catch((error: unknown) => {
-        console.error(error);
-        if (res.headersSent) res.end();
-        else sendJson(res, 500, { error: 'Internal server error' });
-      });
+  return http.createServer((req, res) => {
+    handle(req, res).catch((error: unknown) => {
+      console.error(error);
+      if (res.headersSent) res.end();
+      else sendJson(res, 500, { error: 'Internal server error' });
+    });
   });
 }
 

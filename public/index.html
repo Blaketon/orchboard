@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Orchboard</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="module" src="/app/web/main.js"></script>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <a class="brand" href="/">
+          <img class="brand-logo" src="/assets/logo-128.png" alt="" width="36" height="36" />
+          <span class="brand-name">Orchboard</span>
+        </a>
+        <nav class="projects" aria-label="Projects">
+          <h2 class="sidebar-heading">Projects</h2>
+          <ul id="project-list" class="project-list"></ul>
+        </nav>
+        <div class="sidebar-footer">
+          <button id="theme-toggle" class="button button-quiet" type="button">Theme: system</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <h1 class="page-title">Board</h1>
+          <input
+            id="search"
+            class="search"
+            type="search"
+            placeholder="Search tasks"
+            aria-label="Search tasks"
+            autocomplete="off"
+          />
+          <span id="connection" class="connection" role="status" data-state="connecting">
+            Connecting…
+          </span>
+        </header>
+        <p id="notice" class="notice" role="alert" hidden></p>
+        <div id="board" class="board"></div>
+      </main>
+    </div>
+    <noscript><p class="noscript">Orchboard needs JavaScript enabled.</p></noscript>
+  </body>
+</html>

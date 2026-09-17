@@ -1,22 +1,12 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import type { AgentState, ClaudeAgent } from '../../shared/api.ts';
+
+export type { AgentState, ClaudeAgent };
 
 const execFileAsync = promisify(execFile);
 
-export const AGENT_STATES = ['working', 'blocked', 'done'] as const;
-export type AgentState = (typeof AGENT_STATES)[number];
-
-/** A Claude Code background agent, as reported by `claude agents --json --all`. */
-export interface ClaudeAgent {
-  readonly id: string;
-  readonly sessionId: string;
-  readonly name: string;
-  readonly cwd: string;
-  readonly startedAt: number;
-  readonly state: AgentState;
-  /** Process ID while the agent's process is alive; null once it has exited. */
-  readonly pid: number | null;
-}
+export const AGENT_STATES: readonly AgentState[] = ['working', 'blocked', 'done'];
 
 export interface ParseResult {
   readonly agents: ClaudeAgent[];

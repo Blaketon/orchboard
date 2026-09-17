@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { AgentMonitor } from './agents/agent-monitor.ts';
 import { listClaudeAgents } from './agents/claude-agents.ts';
 import { loadConfig, type Config } from './config.ts';
@@ -18,6 +19,11 @@ const server = createServer({
   host: config.host,
   agents: monitor,
   transcripts: new TranscriptReader(config.claudeDir),
+  // Two levels up from both src/server (development) and dist/server (built).
+  staticRoots: {
+    publicDir: path.resolve(import.meta.dirname, '..', '..', 'public'),
+    buildDir: path.resolve(import.meta.dirname, '..', '..', 'dist'),
+  },
 });
 
 server.on('error', (error: NodeJS.ErrnoException) => {

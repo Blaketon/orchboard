@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Without Node types, browser code that touches Node APIs fails to build.
+    "types": [],
+    "noEmit": false,
+    "rootDir": "..",
+    "outDir": "../../dist"
+  },
+  "exclude": ["**/*.test.ts"]
+}

@@ -1,24 +1,6 @@
-export type TranscriptPart =
-  | { readonly type: 'text'; readonly text: string }
-  | {
-      readonly type: 'tool_call';
-      readonly id: string;
-      readonly name: string;
-      readonly summary: string;
-    }
-  | {
-      readonly type: 'tool_result';
-      readonly toolUseId: string;
-      readonly text: string;
-      readonly isError: boolean;
-    };
+import type { TranscriptEntry, TranscriptPart } from '../../shared/api.ts';
 
-export interface TranscriptEntry {
-  readonly role: 'user' | 'assistant';
-  /** ISO timestamp of the first line in the entry. */
-  readonly timestamp: string;
-  readonly parts: readonly TranscriptPart[];
-}
+export type { TranscriptEntry, TranscriptPart };
 
 export const MAX_RESULT_CHARS = 2000;
 export const MAX_SUMMARY_CHARS = 160;

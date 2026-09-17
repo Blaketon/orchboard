@@ -1,12 +1,7 @@
-import type { ClaudeAgent, ParseResult } from './claude-agents.ts';
+import type { AgentSnapshot, ClaudeAgent } from '../../shared/api.ts';
+import type { ParseResult } from './claude-agents.ts';
 
-export interface AgentSnapshot {
-  readonly agents: readonly ClaudeAgent[];
-  /** Why the latest poll failed, or null. Agents from the last successful poll are kept. */
-  readonly error: string | null;
-  /** When the agents or error last changed. */
-  readonly updatedAt: number;
-}
+export type { AgentSnapshot };
 
 export type SnapshotListener = (snapshot: AgentSnapshot) => void;
 

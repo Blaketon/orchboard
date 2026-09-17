@@ -1,7 +1,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { TranscriptUsageTracker, type SessionUsage } from './session-usage.ts';
-import { parseTranscript, type TranscriptEntry } from './transcript-parser.ts';
+import type { Transcript } from '../../shared/api.ts';
+import { TranscriptUsageTracker } from './session-usage.ts';
+import { parseTranscript } from './transcript-parser.ts';
+
+export type { Transcript };
 
 /** Transcripts can grow to many megabytes; only the most recent part is ever displayed. */
 export const MAX_TAIL_BYTES = 2 * 1024 * 1024;
@@ -11,12 +14,6 @@ const SESSION_ID = /^[A-Za-z0-9-]+$/;
 /** Claude Code's project folder name for a working directory: every non-alphanumeric character becomes `-`. */
 export function encodeProjectDir(cwd: string): string {
   return cwd.replace(/[^a-zA-Z0-9]/g, '-');
-}
-
-export interface Transcript {
-  readonly entries: TranscriptEntry[];
-  /** Null when the session hasn't written a transcript yet. */
-  readonly usage: SessionUsage | null;
 }
 
 export interface TranscriptSource {
