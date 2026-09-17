@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { TranscriptUsageTracker, type SessionUsage } from './session-usage.ts';
 import { parseTranscript, type TranscriptEntry } from './transcript-parser.ts';
 
 /** Transcripts can grow to many megabytes; only the most recent part is ever displayed. */
@@ -12,24 +13,38 @@ export function encodeProjectDir(cwd: string): string {
   return cwd.replace(/[^a-zA-Z0-9]/g, '-');
 }
 
+export interface Transcript {
+  readonly entries: TranscriptEntry[];
+  /** Null when the session hasn't written a transcript yet. */
+  readonly usage: SessionUsage | null;
+}
+
 export interface TranscriptSource {
-  read(session: { cwd: string; sessionId: string }): Promise<TranscriptEntry[]>;
+  read(session: { cwd: string; sessionId: string }): Promise<Transcript>;
 }
 
 export class TranscriptReader implements TranscriptSource {
   readonly #projectsDir: string;
   readonly #locations = new Map<string, string>();
+  readonly #usageTrackers = new Map<string, TranscriptUsageTracker>();
 
   /** @param claudeDir Claude Code's config directory, usually `~/.claude`. */
   constructor(claudeDir: string) {
     this.#projectsDir = path.join(claudeDir, 'projects');
   }
 
-  /** Returns the latest entries, or none if the session hasn't written a transcript yet. */
-  async read(session: { cwd: string; sessionId: string }): Promise<TranscriptEntry[]> {
+  /** Returns the latest entries and usage totals; empty if the session hasn't written a transcript yet. */
+  async read(session: { cwd: string; sessionId: string }): Promise<Transcript> {
     const file = await this.locate(session);
-    if (!file) return [];
-    return parseTranscript(await readTailLines(file));
+    if (!file) return { entries: [], usage: null };
+
+    let tracker = this.#usageTrackers.get(file);
+    if (!tracker) {
+      tracker = new TranscriptUsageTracker(file);
+      this.#usageTrackers.set(file, tracker);
+    }
+    const [lines, usage] = await Promise.all([readTailLines(file), tracker.read()]);
+    return { entries: parseTranscript(lines), usage };
   }
 
   /**

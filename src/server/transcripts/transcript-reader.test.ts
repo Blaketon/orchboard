@@ -41,8 +41,12 @@ describe('TranscriptReader', () => {
 
   it("reads the transcript from the working directory's project folder", async () => {
     await writeTranscript(encodeProjectDir(cwd), prompt('hello'));
-    const entries = await new TranscriptReader(claudeDir).read({ cwd, sessionId: SESSION });
+    const { entries, usage } = await new TranscriptReader(claudeDir).read({
+      cwd,
+      sessionId: SESSION,
+    });
     assert.deepEqual(entries[0]?.parts, [{ type: 'text', text: 'hello' }]);
+    assert.equal(usage?.tokens.output, 0);
   });
 
   it('finds a transcript that moved to a worktree folder', async () => {
@@ -52,11 +56,14 @@ describe('TranscriptReader', () => {
     );
     const reader = new TranscriptReader(claudeDir);
     assert.equal(await reader.locate({ cwd, sessionId: SESSION }), file);
-    assert.equal((await reader.read({ cwd, sessionId: SESSION })).length, 1);
+    assert.equal((await reader.read({ cwd, sessionId: SESSION })).entries.length, 1);
   });
 
   it('returns no entries when the session has no transcript yet', async () => {
-    assert.deepEqual(await new TranscriptReader(claudeDir).read({ cwd, sessionId: SESSION }), []);
+    assert.deepEqual(await new TranscriptReader(claudeDir).read({ cwd, sessionId: SESSION }), {
+      entries: [],
+      usage: null,
+    });
   });
 
   it('rejects session ids that could escape the projects folder', async () => {

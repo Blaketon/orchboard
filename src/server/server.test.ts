@@ -5,7 +5,7 @@ import { after, before, describe, it } from 'node:test';
 import { AgentMonitor, type AgentSnapshot } from './agents/agent-monitor.ts';
 import type { ClaudeAgent } from './agents/claude-agents.ts';
 import { createServer } from './server.ts';
-import type { TranscriptEntry } from './transcripts/transcript-parser.ts';
+import type { Transcript } from './transcripts/transcript-reader.ts';
 
 interface JsonResponse {
   status: number;
@@ -31,9 +31,10 @@ describe('server', () => {
     log: () => undefined,
   });
   const transcriptReads: string[] = [];
-  const transcript: TranscriptEntry[] = [
-    { role: 'user', timestamp: 't', parts: [{ type: 'text', text: 'Fix the tests' }] },
-  ];
+  const transcript: Transcript = {
+    entries: [{ role: 'user', timestamp: 't', parts: [{ type: 'text', text: 'Fix the tests' }] }],
+    usage: null,
+  };
   const server = createServer({
     host: '127.0.0.1',
     agents: monitor,
@@ -146,7 +147,7 @@ describe('server', () => {
 
   it("returns an agent's transcript", async () => {
     const res = await request('/api/agents/a/transcript');
-    assert.deepEqual(res, { status: 200, body: { entries: transcript } });
+    assert.deepEqual(res, { status: 200, body: transcript });
     assert.deepEqual(transcriptReads, ['a-session']);
   });
 

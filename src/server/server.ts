@@ -55,7 +55,7 @@ export function createServer(options: ServerOptions): http.Server {
           sendJson(res, 404, { error: 'Agent not found' });
           return;
         }
-        sendJson(res, 200, { entries: await options.transcripts.read(agent) });
+        sendJson(res, 200, await options.transcripts.read(agent));
       },
     },
     {
