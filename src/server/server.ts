@@ -4,6 +4,7 @@ import type { AgentFeed, AgentSnapshot } from './agents/agent-monitor.ts';
 import type { ClaudeActions } from './agents/claude-actions.ts';
 import { HttpError, readJsonBody } from './http-error.ts';
 import type { ProjectsStore } from './projects/projects-store.ts';
+import type { QueueStore } from './queue/queue-store.ts';
 import { isLoopbackHost, isTrustedRequest } from './security.ts';
 import { serveStatic, type StaticRoots } from './static-files.ts';
 import type { TranscriptSource } from './transcripts/transcript-reader.ts';
@@ -14,6 +15,18 @@ export interface ServerOptions {
   readonly transcripts: TranscriptSource;
   readonly actions: ClaudeActions;
   readonly projects: Pick<ProjectsStore, 'list' | 'save' | 'remove'>;
+  readonly queue: Pick<
+    QueueStore,
+    | 'read'
+    | 'addColumn'
+    | 'renameColumn'
+    | 'removeColumn'
+    | 'addTask'
+    | 'updateTask'
+    | 'moveTask'
+    | 'removeTask'
+    | 'start'
+  >;
   /** Where the web app's files live. Without it, only the API is served. */
   readonly staticRoots?: StaticRoots;
   /** How often idle event streams send a comment so proxies don't drop them. */
@@ -90,6 +103,79 @@ export function createServer(options: ServerOptions): http.Server {
         const projectPath = new URL(req.url ?? '/', 'http://localhost').searchParams.get('path');
         if (!projectPath) throw new HttpError(400, 'Missing project path.');
         sendJson(res, 200, await options.projects.remove(projectPath));
+      },
+    },
+    {
+      method: 'GET',
+      path: '/api/queue',
+      handler: async (_req, res) => {
+        sendJson(res, 200, await options.queue.read());
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/queue/columns',
+      handler: async (req, res) => {
+        sendJson(res, 201, await options.queue.addColumn(await readJsonBody(req)));
+      },
+    },
+    {
+      method: 'PATCH',
+      path: '/api/queue/columns/:id',
+      handler: async (req, res, params) => {
+        sendJson(
+          res,
+          200,
+          await options.queue.renameColumn(params.id ?? '', await readJsonBody(req)),
+        );
+      },
+    },
+    {
+      method: 'DELETE',
+      path: '/api/queue/columns/:id',
+      handler: async (_req, res, params) => {
+        sendJson(res, 200, await options.queue.removeColumn(params.id ?? ''));
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/queue/tasks',
+      handler: async (req, res) => {
+        sendJson(res, 201, await options.queue.addTask(await readJsonBody(req)));
+      },
+    },
+    {
+      method: 'PATCH',
+      path: '/api/queue/tasks/:id',
+      handler: async (req, res, params) => {
+        sendJson(
+          res,
+          200,
+          await options.queue.updateTask(params.id ?? '', await readJsonBody(req)),
+        );
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/queue/tasks/:id/move',
+      handler: async (req, res, params) => {
+        sendJson(res, 200, await options.queue.moveTask(params.id ?? '', await readJsonBody(req)));
+      },
+    },
+    {
+      method: 'DELETE',
+      path: '/api/queue/tasks/:id',
+      handler: async (_req, res, params) => {
+        sendJson(res, 200, await options.queue.removeTask(params.id ?? ''));
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/queue/tasks/:id/start',
+      handler: async (_req, res, params) => {
+        const result = await options.queue.start(params.id ?? '');
+        options.agents.refresh();
+        sendJson(res, 201, result);
       },
     },
     {

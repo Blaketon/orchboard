@@ -39,6 +39,32 @@ export interface SavedProjectView extends SavedProject {
   readonly exists: boolean;
 }
 
+/** A user-defined column of planned tasks, shown on the board next to a project's agents. */
+export interface QueueColumn {
+  readonly id: string;
+  /** Project key the column belongs to. */
+  readonly project: string;
+  readonly name: string;
+}
+
+/** A task waiting in a queue column until the user starts it. */
+export interface QueuedTask {
+  readonly id: string;
+  readonly columnId: string;
+  readonly name: string;
+  /** Folder the agent will run in; the column's project unless changed. */
+  readonly cwd: string;
+  readonly prompt: string;
+  readonly permissionMode: PermissionMode;
+  readonly createdAt: number;
+}
+
+/** `GET /api/queue`. Columns and tasks are listed in display order. */
+export interface QueueState {
+  readonly columns: readonly QueueColumn[];
+  readonly tasks: readonly QueuedTask[];
+}
+
 /** A Claude Code background agent, as reported by `claude agents --json --all`. */
 export interface ClaudeAgent {
   readonly id: string;

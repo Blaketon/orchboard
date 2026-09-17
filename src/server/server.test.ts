@@ -1,11 +1,16 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
+import os from 'node:os';
+import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
+import type { QueueState } from '../shared/api.ts';
 import { AgentMonitor, type AgentSnapshot } from './agents/agent-monitor.ts';
 import type { ClaudeActions } from './agents/claude-actions.ts';
 import type { ClaudeAgent } from './agents/claude-agents.ts';
 import { HttpError } from './http-error.ts';
+import { QueueStore } from './queue/queue-store.ts';
 import { createServer } from './server.ts';
 import type { Transcript } from './transcripts/transcript-reader.ts';
 
@@ -37,6 +42,7 @@ describe('server', () => {
     entries: [{ role: 'user', timestamp: 't', parts: [{ type: 'text', text: 'Fix the tests' }] }],
     usage: null,
   };
+  const queueDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orchboard-server-queue-'));
   const actionCalls: unknown[][] = [];
   const actions: ClaudeActions = {
     start: (request) => {
@@ -70,6 +76,7 @@ describe('server', () => {
         return Promise.resolve([]);
       },
     },
+    queue: new QueueStore(queueDir, actions),
   });
   const removedProjects: string[] = [];
   let port = 0;
@@ -137,6 +144,39 @@ describe('server', () => {
       body: { error: 'This agent is not running.' },
     });
     assert.equal((await postJson('/api/agents/nope/reply', { prompt: 'Yes' })).status, 404);
+  });
+
+  it('manages queue columns and tasks through the API', async () => {
+    const created = await postJson('/api/queue/columns', { project: '/work', name: 'Next up' });
+    assert.equal(created.status, 201);
+    const columnId = (created.body as QueueState).columns[0]?.id ?? '';
+
+    await postJson('/api/queue/tasks', { columnId, prompt: 'First' });
+    let state = (await postJson('/api/queue/tasks', { columnId, prompt: 'Second' }))
+      .body as QueueState;
+    const [first, second] = state.tasks;
+
+    state = (await postJson(`/api/queue/tasks/${second?.id ?? ''}/move`, { columnId, index: 0 }))
+      .body as QueueState;
+    assert.deepEqual(
+      state.tasks.map((task) => task.prompt),
+      ['Second', 'First'],
+    );
+
+    const patched = await request(`/api/queue/tasks/${first?.id ?? ''}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Renamed' }),
+    });
+    assert.equal((patched.body as QueueState).tasks[1]?.name, 'Renamed');
+
+    const started = await postJson(`/api/queue/tasks/${second?.id ?? ''}/start`, {});
+    assert.equal(started.status, 201);
+    assert.deepEqual(actionCalls.at(-1)?.[0], 'start');
+
+    const removed = await request(`/api/queue/columns/${columnId}`, { method: 'DELETE' });
+    assert.deepEqual(removed.body, { columns: [], tasks: [] });
+    fs.rmSync(queueDir, { recursive: true, force: true });
   });
 
   it('lists saved projects and removes one by its path', async () => {

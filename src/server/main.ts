@@ -4,6 +4,7 @@ import { createClaudeActions } from './agents/claude-actions.ts';
 import { listClaudeAgents } from './agents/claude-agents.ts';
 import { loadConfig, type Config } from './config.ts';
 import { ProjectsStore } from './projects/projects-store.ts';
+import { QueueStore } from './queue/queue-store.ts';
 import { isLoopbackHost } from './security.ts';
 import { createServer } from './server.ts';
 import { TranscriptReader } from './transcripts/transcript-reader.ts';
@@ -17,12 +18,14 @@ try {
 }
 
 const monitor = new AgentMonitor({ list: () => listClaudeAgents() });
+const actions = createClaudeActions();
 const server = createServer({
   host: config.host,
   agents: monitor,
   transcripts: new TranscriptReader(config.claudeDir),
-  actions: createClaudeActions(),
+  actions,
   projects: new ProjectsStore(config.dataDir),
+  queue: new QueueStore(config.dataDir, actions),
   // Two levels up from both src/server (development) and dist/server (built).
   staticRoots: {
     publicDir: path.resolve(import.meta.dirname, '..', '..', 'public'),
