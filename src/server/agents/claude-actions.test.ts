@@ -55,7 +55,7 @@ describe('claude actions', () => {
   describe('start', () => {
     it('starts a background agent in the project folder and returns its id', async () => {
       const { calls, run } = recorder('Started background session 9f8e7d6c\n');
-      const result = await createClaudeActions(run).start(
+      const result = await createClaudeActions({ run }).start(
         task({
           cwd: project,
           prompt: '-v flag handling',
@@ -89,7 +89,7 @@ describe('claude actions', () => {
         paths: (ids: readonly string[]) =>
           Promise.resolve(ids.map((item) => `/data/attachments/${item}`)),
       };
-      await createClaudeActions(run, attachments).start(
+      await createClaudeActions({ run, attachments }).start(
         task({
           cwd: project,
           prompt: 'What is wrong in this screenshot?',
@@ -116,7 +116,9 @@ describe('claude actions', () => {
     it('checks that the project folder exists before running anything', async () => {
       const { calls, run } = recorder();
       await rejectsWithStatus(
-        createClaudeActions(run).start(task({ cwd: path.join(project, 'missing'), prompt: 'x' })),
+        createClaudeActions({ run }).start(
+          task({ cwd: path.join(project, 'missing'), prompt: 'x' }),
+        ),
         400,
         /Folder not found/,
       );
@@ -125,14 +127,14 @@ describe('claude actions', () => {
 
     it('reports CLI problems with clear statuses', async () => {
       await rejectsWithStatus(
-        createClaudeActions(() => Promise.reject(new ClaudeCliMissingError())).start(
+        createClaudeActions({ run: () => Promise.reject(new ClaudeCliMissingError()) }).start(
           task({ cwd: project, prompt: 'x' }),
         ),
         503,
       );
       const failure = Object.assign(new Error('exit 1'), { stderr: 'Not logged in\n' });
       await rejectsWithStatus(
-        createClaudeActions(() => Promise.reject(failure)).start(
+        createClaudeActions({ run: () => Promise.reject(failure) }).start(
           task({ cwd: project, prompt: 'x' }),
         ),
         502,
@@ -144,7 +146,7 @@ describe('claude actions', () => {
   describe('reply', () => {
     it("continues the agent's session with the prompt", async () => {
       const { calls, run } = recorder();
-      await createClaudeActions(run).reply(agent(), { prompt: 'Yes, apply both fixes' });
+      await createClaudeActions({ run }).reply(agent(), { prompt: 'Yes, apply both fixes' });
       assert.deepEqual(calls, [
         {
           args: ['--bg', '--resume', agent().sessionId, '--', 'Yes, apply both fixes'],
@@ -153,11 +155,47 @@ describe('claude actions', () => {
       ]);
     });
 
-    it('refuses while the agent is still running', async () => {
+    it('stops an agent that is awaiting input, then continues it', async () => {
+      const { calls, run } = recorder();
+      let alive = true;
+      const actions = createClaudeActions({
+        run,
+        isPidAlive: () => alive,
+        sleep: () => {
+          // The process goes away after the first check, as `claude stop` does its work.
+          alive = false;
+          return Promise.resolve();
+        },
+      });
+
+      await actions.reply(agent({ pid: 42 }), { prompt: 'Recompute the total' });
+      assert.deepEqual(
+        calls.map((call) => call.args),
+        [
+          ['stop', '1a2b3c4d'],
+          ['--bg', '--resume', agent().sessionId, '--', 'Recompute the total'],
+        ],
+      );
+    });
+
+    it('points at the terminal when the agent will not stop', async () => {
+      const { calls, run } = recorder();
+      const actions = createClaudeActions({
+        run,
+        isPidAlive: () => true,
+        sleep: () => Promise.resolve(),
+      });
+      await rejectsWithStatus(actions.reply(agent({ pid: 42 }), { prompt: 'hi' }), 409, /Terminal/);
+      // It stopped, but never resumed.
+      assert.deepEqual(calls.map((call) => call.args[0]).slice(1), []);
+    });
+
+    it('refuses while the agent is still working', async () => {
       const { calls, run } = recorder();
       await rejectsWithStatus(
-        createClaudeActions(run).reply(agent({ pid: 42, state: 'working' }), { prompt: 'hi' }),
+        createClaudeActions({ run }).reply(agent({ pid: 42, state: 'working' }), { prompt: 'hi' }),
         409,
+        /still working/,
       );
       assert.equal(calls.length, 0);
     });
@@ -166,12 +204,12 @@ describe('claude actions', () => {
   describe('stop', () => {
     it('stops a running agent', async () => {
       const { calls, run } = recorder();
-      await createClaudeActions(run).stop(agent({ pid: 42, state: 'working' }));
+      await createClaudeActions({ run }).stop(agent({ pid: 42, state: 'working' }));
       assert.deepEqual(calls, [{ args: ['stop', '1a2b3c4d'], options: { fixedArgs: true } }]);
     });
 
     it('refuses when the agent is not running', async () => {
-      await rejectsWithStatus(createClaudeActions(recorder().run).stop(agent()), 409);
+      await rejectsWithStatus(createClaudeActions({ run: recorder().run }).stop(agent()), 409);
     });
   });
 });
@@ -190,13 +228,17 @@ describe('remove', () => {
 
   it('deletes a finished agent with claude rm', async () => {
     const { calls, run } = recorder();
-    await createClaudeActions(run).remove(finished);
+    await createClaudeActions({ run }).remove(finished);
     assert.deepEqual(calls, [{ args: ['rm', '1a2b3c4d'], options: { fixedArgs: true } }]);
   });
 
   it('refuses while the agent is running', async () => {
     await rejectsWithStatus(
-      createClaudeActions(recorder().run).remove({ ...finished, state: 'working', pid: 7 }),
+      createClaudeActions({ run: recorder().run }).remove({
+        ...finished,
+        state: 'working',
+        pid: 7,
+      }),
       409,
     );
   });

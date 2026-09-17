@@ -207,16 +207,19 @@ export function createDetailPanel(options: {
     const running = agent.pid !== null || agent.state === 'working';
     stopButton.hidden = !running;
     deleteButton.hidden = running;
-    // A running agent can't take a reply: resuming it would start a copy instead.
-    const canReply = agent.pid === null;
+    // A Codex turn takes its input through its own process, so wait for the turn to end.
+    // A Claude agent awaiting input still holds its session: sending stops it and continues it.
+    const canReply = agent.provider === 'codex' ? agent.pid === null : agent.state !== 'working';
     replyInput.disabled = !canReply;
     replyButton.disabled = !canReply;
     const waiting = agent.approvals?.length ?? 0;
-    replyInput.placeholder = canReply
-      ? 'Reply to the agent (Ctrl+Enter to send)'
-      : waiting
-        ? 'The agent is waiting for your decision above.'
-        : 'The agent is working. You can reply once it stops or asks for input.';
+    replyInput.placeholder = !canReply
+      ? waiting
+        ? 'Answer the request above to let the task continue.'
+        : 'The agent is working. You can reply once it stops or asks for input.'
+      : agent.pid !== null
+        ? 'Reply (Ctrl+Enter). Sending stops the live session and continues it with your answer.'
+        : 'Reply to the agent (Ctrl+Enter to send)';
 
     const codex = agent.provider === 'codex';
     terminalButton.title = codex

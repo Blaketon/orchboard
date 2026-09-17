@@ -79,7 +79,7 @@ async function listAgents(): Promise<AgentListResult> {
 
 const monitor = new AgentMonitor({ list: listAgents });
 const actions = createAgentActions({
-  claude: createClaudeActions(undefined, attachments),
+  claude: createClaudeActions({ attachments }),
   codex,
 });
 const claudeTranscripts = new TranscriptReader(config.claudeDir);
