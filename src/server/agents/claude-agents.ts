@@ -1,10 +1,8 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import type { AgentState, ClaudeAgent } from '../../shared/api.ts';
+import { ClaudeCliMissingError, errorCode, runClaude, type RunClaude } from './claude-cli.ts';
 
 export type { AgentState, ClaudeAgent };
-
-const execFileAsync = promisify(execFile);
+export { ClaudeCliMissingError };
 
 export const AGENT_STATES: readonly AgentState[] = ['working', 'blocked', 'done'];
 
@@ -14,20 +12,9 @@ export interface ParseResult {
   readonly skipped: string[];
 }
 
-export type RunCommand = (command: string, args: readonly string[]) => Promise<string>;
-
 export interface ListOptions {
-  readonly run?: RunCommand;
+  readonly run?: RunClaude;
   readonly isPidAlive?: (pid: number) => boolean;
-}
-
-export class ClaudeCliMissingError extends Error {
-  constructor() {
-    super(
-      'Could not find the `claude` CLI on your PATH. Install Claude Code (https://code.claude.com) and restart Orchboard.',
-    );
-    this.name = 'ClaudeCliMissingError';
-  }
 }
 
 export const AGENTS_COMMAND_ARGS = ['agents', '--json', '--all'] as const;
@@ -38,7 +25,7 @@ export async function listClaudeAgents(options: ListOptions = {}): Promise<Parse
 
   let output: string;
   try {
-    output = await run('claude', AGENTS_COMMAND_ARGS);
+    output = await run(AGENTS_COMMAND_ARGS, { fixedArgs: true });
   } catch (error) {
     if (errorCode(error) === 'ENOENT') throw new ClaudeCliMissingError();
     throw error;
@@ -113,39 +100,10 @@ export function isPidAlive(pid: number): boolean {
   }
 }
 
-async function runClaude(command: string, args: readonly string[]): Promise<string> {
-  if (process.platform !== 'win32') return execFileText(command, args);
-  try {
-    // The native installer provides claude.exe, which runs without a shell.
-    return await execFileText(`${command}.exe`, args);
-  } catch (error) {
-    if (errorCode(error) !== 'ENOENT') throw error;
-    // An npm install provides claude.cmd, which Windows can only start through a shell.
-    // Safe here because every argument is a fixed constant.
-    return execFileText(`${command}.cmd`, args, true);
-  }
-}
-
-async function execFileText(file: string, args: readonly string[], shell = false): Promise<string> {
-  const { stdout } = await execFileAsync(file, [...args], {
-    encoding: 'utf8',
-    maxBuffer: 16 * 1024 * 1024,
-    windowsHide: true,
-    shell,
-  });
-  return stdout;
-}
-
 function isAgentState(value: unknown): value is AgentState {
   return (AGENT_STATES as readonly unknown[]).includes(value);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function errorCode(error: unknown): string | undefined {
-  return error instanceof Error && 'code' in error && typeof error.code === 'string'
-    ? error.code
-    : undefined;
 }

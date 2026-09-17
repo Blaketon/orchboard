@@ -12,6 +12,8 @@ export interface AgentFeed {
   current(): AgentSnapshot | undefined;
   /** Calls the listener whenever the snapshot changes. Returns an unsubscribe function. */
   subscribe(listener: SnapshotListener): () => void;
+  /** Polls again soon, e.g. right after starting or stopping an agent. */
+  refresh(): void;
 }
 
 export interface AgentMonitorOptions {
@@ -39,6 +41,9 @@ export class AgentMonitor implements AgentFeed {
   #loggedError: string | null = null;
   #timer: NodeJS.Timeout | undefined;
   #generation = 0;
+  #running = false;
+  #inFlight = false;
+  #pollAgainSoon = false;
 
   constructor(options: AgentMonitorOptions) {
     this.#list = options.list;
@@ -66,20 +71,43 @@ export class AgentMonitor implements AgentFeed {
   /** Starts polling immediately, then again `intervalMs` after each poll finishes. */
   start(): void {
     this.stop();
-    const generation = ++this.#generation;
-    const loop = async (): Promise<void> => {
-      await this.poll();
-      if (generation !== this.#generation) return;
-      this.#timer = setTimeout(() => void loop(), this.#intervalMs);
-      this.#timer.unref();
-    };
-    void loop();
+    this.#running = true;
+    this.#schedule(0, this.#generation);
   }
 
   stop(): void {
     this.#generation++;
+    this.#running = false;
+    this.#pollAgainSoon = false;
     clearTimeout(this.#timer);
     this.#timer = undefined;
+  }
+
+  refresh(): void {
+    if (!this.#running) return;
+    // Never overlap polls: if one is running, start the next as soon as it finishes.
+    if (this.#inFlight) this.#pollAgainSoon = true;
+    else this.#schedule(0, this.#generation);
+  }
+
+  #schedule(delayMs: number, generation: number): void {
+    clearTimeout(this.#timer);
+    this.#timer = setTimeout(() => void this.#tick(generation), delayMs);
+    this.#timer.unref();
+  }
+
+  async #tick(generation: number): Promise<void> {
+    if (generation !== this.#generation) return;
+    this.#inFlight = true;
+    try {
+      await this.poll();
+    } finally {
+      this.#inFlight = false;
+    }
+    if (generation !== this.#generation) return;
+    const delay = this.#pollAgainSoon ? 0 : this.#intervalMs;
+    this.#pollAgainSoon = false;
+    this.#schedule(delay, generation);
   }
 
   async poll(): Promise<AgentSnapshot> {

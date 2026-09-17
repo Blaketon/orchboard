@@ -135,8 +135,33 @@ describe('AgentMonitor', () => {
     });
 
     monitor.start();
-    await sleep(80);
+    for (let i = 0; i < 10; i++) {
+      monitor.refresh();
+      await sleep(8);
+    }
     monitor.stop();
     assert.equal(maxActive, 1);
+  });
+
+  it('polls right away on refresh() instead of waiting for the interval', async () => {
+    let polls = 0;
+    const monitor = new AgentMonitor({
+      list: () => {
+        polls++;
+        return Promise.resolve({ agents: [], skipped: [] });
+      },
+      intervalMs: 60_000,
+      log: () => undefined,
+    });
+
+    monitor.refresh(); // Ignored until started.
+    monitor.start();
+    await sleep(20);
+    assert.equal(polls, 1);
+
+    monitor.refresh();
+    await sleep(20);
+    monitor.stop();
+    assert.equal(polls, 2);
   });
 });

@@ -4,6 +4,7 @@ import { renderBoard, renderProjects } from './board.ts';
 import { createDetailPanel } from './detail.ts';
 import { byId } from './dom.ts';
 import { connectLiveAgents, type ConnectionState } from './live.ts';
+import { createNewTaskDialog } from './new-task.ts';
 import { setUpThemeToggle } from './theme.ts';
 
 const CONNECTION_LABELS: Readonly<Record<ConnectionState, string>> = {
@@ -24,6 +25,14 @@ let selectedProject: string | null = null;
 let query = '';
 
 setUpThemeToggle(byId('theme-toggle', 'button'));
+
+const newTask = createNewTaskDialog({
+  knownProjects: () => listProjects(snapshot?.agents ?? []).map((project) => project.key),
+  onStarted: () => undefined,
+});
+byId('new-task', 'button').addEventListener('click', () => {
+  newTask.open(selectedProject);
+});
 
 function render(): void {
   if (!snapshot) return;

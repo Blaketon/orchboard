@@ -8,8 +8,8 @@ import {
   isPidAlive,
   listClaudeAgents,
   parseAgents,
-  type RunCommand,
 } from './claude-agents.ts';
+import type { RunClaude, RunClaudeOptions } from './claude-cli.ts';
 
 const blocked = {
   id: '1a2b3c4d',
@@ -91,18 +91,18 @@ describe('parseAgents', () => {
 });
 
 describe('listClaudeAgents', () => {
-  it('runs `claude agents --json --all`', async () => {
-    const calls: [string, readonly string[]][] = [];
-    const run: RunCommand = (command, args) => {
-      calls.push([command, args]);
+  it('runs `claude agents --json --all` with fixed arguments', async () => {
+    const calls: [readonly string[], RunClaudeOptions | undefined][] = [];
+    const run: RunClaude = (args, options) => {
+      calls.push([args, options]);
       return Promise.resolve('[]');
     };
     await listClaudeAgents({ run });
-    assert.deepEqual(calls, [['claude', AGENTS_COMMAND_ARGS]]);
+    assert.deepEqual(calls, [[AGENTS_COMMAND_ARGS, { fixedArgs: true }]]);
   });
 
   it('clears the pid of agents whose process has exited', async () => {
-    const run: RunCommand = () => Promise.resolve(JSON.stringify([working]));
+    const run: RunClaude = () => Promise.resolve(JSON.stringify([working]));
     const alive = await listClaudeAgents({ run, isPidAlive: () => true });
     const exited = await listClaudeAgents({ run, isPidAlive: () => false });
     assert.equal(alive.agents[0]?.pid, 4242);
@@ -110,13 +110,13 @@ describe('listClaudeAgents', () => {
   });
 
   it('reports a missing CLI with a clear error', async () => {
-    const run: RunCommand = () =>
+    const run: RunClaude = () =>
       Promise.reject(Object.assign(new Error('spawn claude ENOENT'), { code: 'ENOENT' }));
     await assert.rejects(listClaudeAgents({ run }), ClaudeCliMissingError);
   });
 
   it('passes other command failures through', async () => {
-    const run: RunCommand = () => Promise.reject(new Error('exit code 1'));
+    const run: RunClaude = () => Promise.reject(new Error('exit code 1'));
     await assert.rejects(listClaudeAgents({ run }), /exit code 1/);
   });
 });

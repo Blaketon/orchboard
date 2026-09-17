@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { AgentMonitor } from './agents/agent-monitor.ts';
+import { createClaudeActions } from './agents/claude-actions.ts';
 import { listClaudeAgents } from './agents/claude-agents.ts';
 import { loadConfig, type Config } from './config.ts';
 import { isLoopbackHost } from './security.ts';
@@ -19,6 +20,7 @@ const server = createServer({
   host: config.host,
   agents: monitor,
   transcripts: new TranscriptReader(config.claudeDir),
+  actions: createClaudeActions(),
   // Two levels up from both src/server (development) and dist/server (built).
   staticRoots: {
     publicDir: path.resolve(import.meta.dirname, '..', '..', 'public'),

@@ -1,5 +1,8 @@
 import http from 'node:http';
+import type { ClaudeAgent } from '../shared/api.ts';
 import type { AgentFeed, AgentSnapshot } from './agents/agent-monitor.ts';
+import type { ClaudeActions } from './agents/claude-actions.ts';
+import { HttpError, readJsonBody } from './http-error.ts';
 import { isLoopbackHost, isTrustedRequest } from './security.ts';
 import { serveStatic, type StaticRoots } from './static-files.ts';
 import type { TranscriptSource } from './transcripts/transcript-reader.ts';
@@ -8,6 +11,7 @@ export interface ServerOptions {
   readonly host: string;
   readonly agents: AgentFeed;
   readonly transcripts: TranscriptSource;
+  readonly actions: ClaudeActions;
   /** Where the web app's files live. Without it, only the API is served. */
   readonly staticRoots?: StaticRoots;
   /** How often idle event streams send a comment so proxies don't drop them. */
@@ -32,6 +36,13 @@ export function createServer(options: ServerOptions): http.Server {
   const trust = { allowAnyHost: !isLoopbackHost(options.host) };
   const keepAliveMs = options.keepAliveMs ?? 25_000;
 
+  const findAgent = async (id: string | undefined): Promise<ClaudeAgent> => {
+    const snapshot = options.agents.current() ?? (await options.agents.ready());
+    const agent = snapshot.agents.find((candidate) => candidate.id === id);
+    if (!agent) throw new HttpError(404, 'Agent not found');
+    return agent;
+  };
+
   const routes: Route[] = [
     {
       method: 'GET',
@@ -52,13 +63,35 @@ export function createServer(options: ServerOptions): http.Server {
       method: 'GET',
       path: '/api/agents/:id/transcript',
       handler: async (_req, res, params) => {
-        const snapshot = options.agents.current() ?? (await options.agents.ready());
-        const agent = snapshot.agents.find((candidate) => candidate.id === params.id);
-        if (!agent) {
-          sendJson(res, 404, { error: 'Agent not found' });
-          return;
-        }
-        sendJson(res, 200, await options.transcripts.read(agent));
+        sendJson(res, 200, await options.transcripts.read(await findAgent(params.id)));
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/tasks',
+      handler: async (req, res) => {
+        const result = await options.actions.start(await readJsonBody(req));
+        options.agents.refresh();
+        sendJson(res, 201, result);
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/agents/:id/reply',
+      handler: async (req, res, params) => {
+        const agent = await findAgent(params.id);
+        await options.actions.reply(agent, await readJsonBody(req));
+        options.agents.refresh();
+        sendJson(res, 202, { ok: true });
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/agents/:id/stop',
+      handler: async (_req, res, params) => {
+        await options.actions.stop(await findAgent(params.id));
+        options.agents.refresh();
+        sendJson(res, 202, { ok: true });
       },
     },
     {
@@ -94,9 +127,14 @@ export function createServer(options: ServerOptions): http.Server {
 
   return http.createServer((req, res) => {
     handle(req, res).catch((error: unknown) => {
-      console.error(error);
-      if (res.headersSent) res.end();
-      else sendJson(res, 500, { error: 'Internal server error' });
+      if (res.headersSent) {
+        res.end();
+      } else if (error instanceof HttpError) {
+        sendJson(res, error.status, { error: error.message });
+      } else {
+        console.error(error);
+        sendJson(res, 500, { error: 'Internal server error' });
+      }
     });
   });
 }

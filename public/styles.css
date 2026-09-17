@@ -75,7 +75,9 @@ body {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
   color: inherit;
 }
@@ -173,6 +175,127 @@ input {
 
 .button:hover {
   background: var(--surface-2);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.button-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #06140c;
+  font-weight: 600;
+}
+
+.button-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 85%, #000);
+}
+
+.button-danger {
+  border-color: color-mix(in srgb, var(--blocked) 50%, var(--border));
+  color: var(--blocked);
+}
+
+/* ---------- Forms and modals ---------- */
+
+.modal {
+  width: min(560px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 20px 50px rgb(0 0 0 / 35%);
+}
+
+.modal::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+
+.form-title {
+  margin: 0;
+  font-size: 17px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.field-hint {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.field-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.field-prompt {
+  min-height: 140px;
+  resize: vertical;
+}
+
+.form-error {
+  margin: 0;
+  color: var(--blocked);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ---------- Toasts ---------- */
+
+.toasts {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  max-width: 380px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--focus);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.toast[data-kind='success'] {
+  border-left-color: var(--done);
+}
+
+.toast[data-kind='error'] {
+  border-left-color: var(--blocked);
 }
 
 .button-quiet {
@@ -656,4 +779,27 @@ input {
   .board {
     padding: 16px;
   }
+}
+
+/* ---------- Detail actions and reply ---------- */
+
+.detail-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.reply {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.reply-input {
+  flex: 1;
+  min-height: 44px;
+  max-height: 200px;
+  resize: vertical;
 }

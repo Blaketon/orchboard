@@ -1,7 +1,9 @@
 import type { ClaudeAgent, SessionUsage, Transcript, TranscriptPart } from '../shared/api.ts';
 import { projectKey, projectLabel } from './agents.ts';
+import { postJson } from './api.ts';
 import { el } from './dom.ts';
 import { formatAge, formatClock, formatCost, formatPercent, formatTokens } from './format.ts';
+import { showToast } from './toast.ts';
 
 const REFRESH_MS = 3000;
 const STATE_LABELS: Readonly<Record<ClaudeAgent['state'], string>> = {
@@ -25,15 +27,34 @@ export function createDetailPanel(): DetailPanel {
     text: 'Close',
     attrs: { type: 'button' },
   });
+  const stopButton = el('button', {
+    className: 'button button-danger',
+    text: 'Stop',
+    attrs: { type: 'button', title: 'Stop the agent. Its conversation is kept.' },
+  });
   const usage = el('div', { className: 'usage' });
   const log = el('div', { className: 'transcript' });
+  const replyInput = el('textarea', {
+    className: 'field-input reply-input',
+    attrs: { rows: '2', 'aria-label': 'Reply to the agent' },
+  });
+  const replyButton = el('button', {
+    className: 'button button-primary',
+    text: 'Send',
+    attrs: { type: 'submit' },
+  });
+  const replyForm = el('form', { className: 'reply' }, [replyInput, replyButton]);
   const dialog = el(
     'dialog',
     { className: 'detail', attrs: { 'aria-labelledby': 'detail-title' } },
     [
-      el('header', { className: 'detail-header' }, [el('div', {}, [title, meta]), closeButton]),
+      el('header', { className: 'detail-header' }, [
+        el('div', {}, [title, meta]),
+        el('div', { className: 'detail-actions' }, [stopButton, closeButton]),
+      ]),
       usage,
       log,
+      replyForm,
     ],
   );
   document.body.append(dialog);
@@ -44,6 +65,45 @@ export function createDetailPanel(): DetailPanel {
 
   closeButton.addEventListener('click', () => {
     dialog.close();
+  });
+
+  stopButton.addEventListener('click', () => {
+    const agent = current;
+    if (!agent) return;
+    stopButton.disabled = true;
+    postJson(`/api/agents/${encodeURIComponent(agent.id)}/stop`, {})
+      .then(() => {
+        showToast('Stopping agent…');
+      })
+      .catch((error: unknown) => {
+        showToast(error instanceof Error ? error.message : String(error), 'error');
+      })
+      .finally(() => {
+        stopButton.disabled = false;
+      });
+  });
+
+  replyInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) replyForm.requestSubmit();
+  });
+  replyForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const agent = current;
+    const prompt = replyInput.value.trim();
+    if (!agent || !prompt) return;
+    replyButton.disabled = true;
+    postJson(`/api/agents/${encodeURIComponent(agent.id)}/reply`, { prompt })
+      .then(() => {
+        replyInput.value = '';
+        showToast('Reply sent', 'success');
+        window.setTimeout(() => void refresh(), 1500);
+      })
+      .catch((error: unknown) => {
+        showToast(error instanceof Error ? error.message : String(error), 'error');
+      })
+      .finally(() => {
+        replyButton.disabled = false;
+      });
   });
   // Clicking the dimmed backdrop (outside the panel) closes it too.
   dialog.addEventListener('click', (event) => {
@@ -65,6 +125,16 @@ export function createDetailPanel(): DetailPanel {
       el('span', { text: projectLabel(projectKey(agent.cwd)), attrs: { title: agent.cwd } }),
       el('span', { text: `started ${formatAge(agent.startedAt, Date.now())} ago` }),
     );
+
+    const running = agent.pid !== null || agent.state === 'working';
+    stopButton.hidden = !running;
+    // A running agent can't take a reply: resuming it would start a copy instead.
+    const canReply = agent.pid === null;
+    replyInput.disabled = !canReply;
+    replyButton.disabled = !canReply;
+    replyInput.placeholder = canReply
+      ? 'Reply to the agent (Ctrl+Enter to send)'
+      : 'The agent is working. You can reply once it stops or asks for input.';
   }
 
   async function refresh(): Promise<void> {

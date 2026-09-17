@@ -3,7 +3,9 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 import { AgentMonitor, type AgentSnapshot } from './agents/agent-monitor.ts';
+import type { ClaudeActions } from './agents/claude-actions.ts';
 import type { ClaudeAgent } from './agents/claude-agents.ts';
+import { HttpError } from './http-error.ts';
 import { createServer } from './server.ts';
 import type { Transcript } from './transcripts/transcript-reader.ts';
 
@@ -35,6 +37,21 @@ describe('server', () => {
     entries: [{ role: 'user', timestamp: 't', parts: [{ type: 'text', text: 'Fix the tests' }] }],
     usage: null,
   };
+  const actionCalls: unknown[][] = [];
+  const actions: ClaudeActions = {
+    start: (request) => {
+      actionCalls.push(['start', request]);
+      return Promise.resolve({ id: 'new12345' });
+    },
+    reply: (target, request) => {
+      actionCalls.push(['reply', target.id, request]);
+      return Promise.resolve();
+    },
+    stop: (target) => {
+      actionCalls.push(['stop', target.id]);
+      return Promise.reject(new HttpError(409, 'This agent is not running.'));
+    },
+  };
   const server = createServer({
     host: '127.0.0.1',
     agents: monitor,
@@ -44,6 +61,7 @@ describe('server', () => {
         return Promise.resolve(transcript);
       },
     },
+    actions,
   });
   let port = 0;
 
@@ -60,7 +78,7 @@ describe('server', () => {
 
   function request(
     path: string,
-    options: { method?: string; headers?: http.OutgoingHttpHeaders } = {},
+    options: { method?: string; headers?: http.OutgoingHttpHeaders; body?: string } = {},
   ): Promise<JsonResponse> {
     return new Promise((resolve, reject) => {
       const req = http.request(
@@ -81,9 +99,45 @@ describe('server', () => {
         },
       );
       req.on('error', reject);
-      req.end();
+      req.end(options.body);
     });
   }
+
+  const postJson = (path: string, body: unknown) =>
+    request(path, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+  it('starts a task', async () => {
+    const body = { cwd: '/work', prompt: 'Fix the tests' };
+    assert.deepEqual(await postJson('/api/tasks', body), {
+      status: 201,
+      body: { id: 'new12345' },
+    });
+    assert.deepEqual(actionCalls.at(-1), ['start', body]);
+  });
+
+  it('replies to an agent and passes action errors through with their status', async () => {
+    assert.equal((await postJson('/api/agents/a/reply', { prompt: 'Yes' })).status, 202);
+    assert.deepEqual(actionCalls.at(-1), ['reply', 'a', { prompt: 'Yes' }]);
+
+    assert.deepEqual(await postJson('/api/agents/a/stop', {}), {
+      status: 409,
+      body: { error: 'This agent is not running.' },
+    });
+    assert.equal((await postJson('/api/agents/nope/reply', { prompt: 'Yes' })).status, 404);
+  });
+
+  it('rejects action requests that are not JSON', async () => {
+    const res = await request('/api/tasks', {
+      method: 'POST',
+      headers: { 'content-type': 'text/plain' },
+      body: '{}',
+    });
+    assert.equal(res.status, 415);
+  });
 
   /** Opens /api/events and yields each `agents` event as it arrives. */
   function openEventStream(): Promise<{ next: () => Promise<AgentSnapshot>; close: () => void }> {

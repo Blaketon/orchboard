@@ -1,7 +1,29 @@
 // Types for the HTTP API, shared by the server and the browser code. Type-only on purpose:
 // nothing here exists at runtime, so the browser never has to load this file.
 
+import type { PermissionMode } from './permission-modes.ts';
+
 export type AgentState = 'working' | 'blocked' | 'done';
+
+/** `POST /api/tasks`. */
+export interface StartTaskRequest {
+  /** Absolute path of the project folder to run the agent in. */
+  readonly cwd: string;
+  readonly prompt: string;
+  /** Defaults to the prompt's first line. */
+  readonly name?: string;
+  readonly permissionMode?: PermissionMode;
+}
+
+export interface StartTaskResponse {
+  /** The new agent's id, when the CLI reported one. */
+  readonly id: string | null;
+}
+
+/** `POST /api/agents/:id/reply`. */
+export interface ReplyRequest {
+  readonly prompt: string;
+}
 
 /** A Claude Code background agent, as reported by `claude agents --json --all`. */
 export interface ClaudeAgent {
