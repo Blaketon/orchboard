@@ -1,28 +1,45 @@
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import { describe, it } from 'node:test';
-import { DEFAULT_HOST, DEFAULT_PORT, loadConfig, parsePort } from './config.ts';
+import { DATA_DIR_NAME, DEFAULT_HOST, DEFAULT_PORT, loadConfig, parsePort } from './config.ts';
+
+const home = path.resolve('/home/tester');
 
 describe('loadConfig', () => {
-  it('defaults to loopback on the default port', () => {
-    assert.deepEqual(loadConfig({}), { port: DEFAULT_PORT, host: DEFAULT_HOST });
+  it('defaults to loopback, the default port, and a data dir in the home directory', () => {
+    assert.deepEqual(loadConfig({}, home), {
+      port: DEFAULT_PORT,
+      host: DEFAULT_HOST,
+      dataDir: path.join(home, DATA_DIR_NAME),
+    });
   });
 
-  it('reads ORCHBOARD_PORT and ORCHBOARD_HOST', () => {
-    assert.deepEqual(loadConfig({ ORCHBOARD_PORT: '5000', ORCHBOARD_HOST: '0.0.0.0' }), {
-      port: 5000,
-      host: '0.0.0.0',
-    });
+  it('reads ORCHBOARD_PORT, ORCHBOARD_HOST, and ORCHBOARD_DATA_DIR', () => {
+    const dataDir = path.resolve('/srv/orchboard');
+    assert.deepEqual(
+      loadConfig(
+        { ORCHBOARD_PORT: '5000', ORCHBOARD_HOST: '0.0.0.0', ORCHBOARD_DATA_DIR: dataDir },
+        home,
+      ),
+      { port: 5000, host: '0.0.0.0', dataDir },
+    );
+  });
+
+  it('resolves a relative ORCHBOARD_DATA_DIR to an absolute path', () => {
+    const { dataDir } = loadConfig({ ORCHBOARD_DATA_DIR: 'state' }, home);
+    assert.equal(dataDir, path.resolve('state'));
   });
 
   it('ignores unprefixed PORT and HOST', () => {
-    assert.deepEqual(loadConfig({ PORT: '5000', HOST: 'my-machine' }), {
-      port: DEFAULT_PORT,
-      host: DEFAULT_HOST,
-    });
+    const config = loadConfig({ PORT: '5000', HOST: 'my-machine' }, home);
+    assert.equal(config.port, DEFAULT_PORT);
+    assert.equal(config.host, DEFAULT_HOST);
   });
 
-  it('falls back to the default host when ORCHBOARD_HOST is blank', () => {
-    assert.equal(loadConfig({ ORCHBOARD_HOST: '  ' }).host, DEFAULT_HOST);
+  it('falls back to defaults when variables are blank', () => {
+    const config = loadConfig({ ORCHBOARD_HOST: '  ', ORCHBOARD_DATA_DIR: '' }, home);
+    assert.equal(config.host, DEFAULT_HOST);
+    assert.equal(config.dataDir, path.join(home, DATA_DIR_NAME));
   });
 });
 
