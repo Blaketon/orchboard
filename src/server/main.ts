@@ -2,6 +2,7 @@ import path from 'node:path';
 import { AgentMonitor } from './agents/agent-monitor.ts';
 import { createClaudeActions } from './agents/claude-actions.ts';
 import { listClaudeAgents } from './agents/claude-agents.ts';
+import { openAgentTerminal } from './agents/terminal.ts';
 import { loadConfig, type Config } from './config.ts';
 import { ProjectsStore } from './projects/projects-store.ts';
 import { QueueStore } from './queue/queue-store.ts';
@@ -28,6 +29,7 @@ const server = createServer({
   projects: new ProjectsStore(config.dataDir),
   queue: new QueueStore(config.dataDir, actions),
   usage: new UsageService({ claudeDir: config.claudeDir, codexDir: config.codexDir }),
+  openTerminal: (agent) => openAgentTerminal(agent),
   // Two levels up from both src/server (development) and dist/server (built).
   staticRoots: {
     publicDir: path.resolve(import.meta.dirname, '..', '..', 'public'),

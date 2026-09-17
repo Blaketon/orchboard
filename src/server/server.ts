@@ -29,6 +29,7 @@ export interface ServerOptions {
     | 'start'
   >;
   readonly usage: Pick<UsageService, 'report'>;
+  readonly openTerminal: (agent: ClaudeAgent) => Promise<void>;
   /** Where the web app's files live. Without it, only the API is served. */
   readonly staticRoots?: StaticRoots;
   /** How often idle event streams send a comment so proxies don't drop them. */
@@ -203,6 +204,14 @@ export function createServer(options: ServerOptions): http.Server {
         const agent = await findAgent(params.id);
         await options.actions.reply(agent, await readJsonBody(req));
         options.agents.refresh();
+        sendJson(res, 202, { ok: true });
+      },
+    },
+    {
+      method: 'POST',
+      path: '/api/agents/:id/terminal',
+      handler: async (_req, res, params) => {
+        await options.openTerminal(await findAgent(params.id));
         sendJson(res, 202, { ok: true });
       },
     },

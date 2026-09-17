@@ -77,6 +77,10 @@ describe('server', () => {
       },
     },
     queue: new QueueStore(queueDir, actions),
+    openTerminal: (target) => {
+      actionCalls.push(['terminal', target.id]);
+      return Promise.resolve();
+    },
     usage: {
       report: () =>
         Promise.resolve({
@@ -151,6 +155,9 @@ describe('server', () => {
       body: { error: 'This agent is not running.' },
     });
     assert.equal((await postJson('/api/agents/nope/reply', { prompt: 'Yes' })).status, 404);
+
+    assert.equal((await postJson('/api/agents/a/terminal', {})).status, 202);
+    assert.deepEqual(actionCalls.at(-1), ['terminal', 'a']);
   });
 
   it('manages queue columns and tasks through the API', async () => {

@@ -32,6 +32,11 @@ export function createDetailPanel(): DetailPanel {
     text: 'Stop',
     attrs: { type: 'button', title: 'Stop the agent. Its conversation is kept.' },
   });
+  const terminalButton = el('button', {
+    className: 'button',
+    text: 'Terminal',
+    attrs: { type: 'button', title: 'Open this agent in a terminal window (claude attach)' },
+  });
   const usage = el('div', { className: 'usage' });
   const log = el('div', { className: 'transcript' });
   const replyInput = el('textarea', {
@@ -50,7 +55,7 @@ export function createDetailPanel(): DetailPanel {
     [
       el('header', { className: 'detail-header' }, [
         el('div', {}, [title, meta]),
-        el('div', { className: 'detail-actions' }, [stopButton, closeButton]),
+        el('div', { className: 'detail-actions' }, [terminalButton, stopButton, closeButton]),
       ]),
       usage,
       log,
@@ -65,6 +70,14 @@ export function createDetailPanel(): DetailPanel {
 
   closeButton.addEventListener('click', () => {
     dialog.close();
+  });
+
+  terminalButton.addEventListener('click', () => {
+    const agent = current;
+    if (!agent) return;
+    postJson(`/api/agents/${encodeURIComponent(agent.id)}/terminal`, {}).catch((error: unknown) => {
+      showToast(error instanceof Error ? error.message : String(error), 'error');
+    });
   });
 
   stopButton.addEventListener('click', () => {
