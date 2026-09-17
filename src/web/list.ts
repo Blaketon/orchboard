@@ -1,5 +1,6 @@
 import type { Agent } from '../shared/api.ts';
 import { projectKey, projectLabel } from './agents.ts';
+import { agentTag } from './board.ts';
 import { el } from './dom.ts';
 import { formatAge } from './format.ts';
 
@@ -46,6 +47,7 @@ export function renderList(
             },
           },
         }),
+        agentTag(agent),
       ]),
       el('td', {
         className: 'list-muted',

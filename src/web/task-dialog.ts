@@ -1,4 +1,5 @@
 import type {
+  AgentProvider,
   QueueColumn,
   QueuedTask,
   QueueState,
@@ -6,17 +7,41 @@ import type {
   StartTaskResponse,
 } from '../shared/api.ts';
 import {
+  CODEX_PERMISSION_MODES,
+  DEFAULT_CODEX_PERMISSION_MODE,
   DEFAULT_PERMISSION_MODE,
+  isCodexPermissionMode,
   isPermissionMode,
   PERMISSION_MODES,
+  type CodexPermissionMode,
   type PermissionMode,
 } from '../shared/permission-modes.ts';
+import { AGENT_LABELS } from './agents.ts';
 import { requestJson } from './api.ts';
 import { createAttachmentPicker } from './attachments.ts';
 import { el } from './dom.ts';
 import { showToast } from './toast.ts';
 
-const MODE_KEY = 'orchboard-permission-mode';
+type Mode = PermissionMode | CodexPermissionMode;
+
+const PROVIDER_KEY = 'orchboard-agent';
+const MODE_KEYS: Readonly<Record<AgentProvider, string>> = {
+  claude: 'orchboard-permission-mode',
+  codex: 'orchboard-codex-permission-mode',
+};
+
+/** The permission choices for an agent. */
+export function modesFor(provider: AgentProvider): readonly { value: Mode; label: string }[] {
+  return provider === 'codex' ? CODEX_PERMISSION_MODES : PERMISSION_MODES;
+}
+
+/** A mode that is valid for the agent, falling back to the agent's default. */
+export function modeFor(provider: AgentProvider, value: unknown): Mode {
+  if (provider === 'codex') {
+    return isCodexPermissionMode(value) ? value : DEFAULT_CODEX_PERMISSION_MODE;
+  }
+  return isPermissionMode(value) ? value : DEFAULT_PERMISSION_MODE;
+}
 
 type Target =
   | { readonly kind: 'start' }
@@ -63,13 +88,14 @@ export function createTaskDialog(options: {
     className: 'field-input field-prompt',
     attrs: { name: 'prompt', required: '', rows: '8', placeholder: 'What should the agent do?' },
   });
-  const mode = el(
+  const agent = el(
     'select',
-    { className: 'field-input', attrs: { name: 'permissionMode' } },
-    PERMISSION_MODES.map((option) =>
-      el('option', { attrs: { value: option.value }, text: option.label }),
+    { className: 'field-input', attrs: { name: 'provider' } },
+    (Object.keys(AGENT_LABELS) as AgentProvider[]).map((value) =>
+      el('option', { attrs: { value }, text: AGENT_LABELS[value] }),
     ),
   );
+  const mode = el('select', { className: 'field-input', attrs: { name: 'permissionMode' } });
   const images = createAttachmentPicker();
   images.listenOn(prompt);
   const error = el('p', { className: 'form-error', attrs: { role: 'alert' } });
@@ -86,7 +112,7 @@ export function createTaskDialog(options: {
       el('span', { className: 'field-label', text: 'Images' }),
       images.element,
     ]),
-    field('Permissions', mode),
+    el('div', { className: 'field-row' }, [field('Agent', agent), field('Permissions', mode)]),
     error,
     el('div', { className: 'form-actions' }, [cancel, submit]),
     suggestions,
@@ -106,6 +132,22 @@ export function createTaskDialog(options: {
       'queue-edit': { title: 'Edit queued task', submit: 'Save', busy: 'Saving…' },
     };
 
+  const currentProvider = (): AgentProvider => (agent.value === 'codex' ? 'codex' : 'claude');
+
+  function setProvider(provider: AgentProvider, selected: unknown): void {
+    agent.value = provider;
+    mode.replaceChildren(
+      ...modesFor(provider).map((option) =>
+        el('option', { attrs: { value: option.value }, text: option.label }),
+      ),
+    );
+    mode.value = modeFor(provider, selected);
+  }
+
+  agent.addEventListener('change', () => {
+    const provider = currentProvider();
+    setProvider(provider, stored(MODE_KEYS[provider]));
+  });
   cancel.addEventListener('click', () => {
     dialog.close();
   });
@@ -123,8 +165,10 @@ export function createTaskDialog(options: {
       error.hidden = false;
       return;
     }
-    const permissionMode = isPermissionMode(mode.value) ? mode.value : DEFAULT_PERMISSION_MODE;
+    const provider = currentProvider();
+    const permissionMode = modeFor(provider, mode.value);
     const fields = {
+      provider,
       cwd: cwd.value.trim(),
       prompt: prompt.value,
       name: name.value.trim(),
@@ -142,7 +186,7 @@ export function createTaskDialog(options: {
           '/api/tasks',
           fields satisfies StartTaskRequest,
         );
-        showToast('Task started', 'success');
+        showToast(`${AGENT_LABELS[provider]} task started`, 'success');
       } else if (target.kind === 'queue-add') {
         options.onQueueChanged(
           await requestJson<QueueState>('POST', '/api/queue/tasks', {
@@ -159,7 +203,8 @@ export function createTaskDialog(options: {
           ),
         );
       }
-      saveMode(permissionMode);
+      remember(PROVIDER_KEY, provider);
+      remember(MODE_KEYS[provider], permissionMode);
       dialog.close();
     } catch (caught) {
       error.textContent = caught instanceof Error ? caught.message : String(caught);
@@ -176,7 +221,8 @@ export function createTaskDialog(options: {
       cwd: string;
       name: string;
       prompt: string;
-      mode: PermissionMode;
+      provider: AgentProvider;
+      mode: unknown;
       images: readonly string[];
     },
   ) {
@@ -190,25 +236,25 @@ export function createTaskDialog(options: {
     cwd.value = values.cwd;
     name.value = values.name;
     prompt.value = values.prompt;
-    mode.value = values.mode;
+    setProvider(values.provider, values.mode);
     images.reset(values.images);
     error.hidden = true;
     dialog.showModal();
     (cwd.value ? prompt : cwd).focus();
   }
 
+  /** A new task starts with the agent and mode used last time. */
+  const fresh = () => {
+    const provider: AgentProvider = stored(PROVIDER_KEY) === 'codex' ? 'codex' : 'claude';
+    return { name: '', prompt: '', provider, mode: stored(MODE_KEYS[provider]), images: [] };
+  };
+
   return {
     open(defaultCwd) {
-      show(
-        { kind: 'start' },
-        { cwd: defaultCwd ?? cwd.value, name: '', prompt: '', mode: storedMode(), images: [] },
-      );
+      show({ kind: 'start' }, { ...fresh(), cwd: defaultCwd ?? cwd.value });
     },
     openQueueAdd(column) {
-      show(
-        { kind: 'queue-add', column },
-        { cwd: column.project, name: '', prompt: '', mode: storedMode(), images: [] },
-      );
+      show({ kind: 'queue-add', column }, { ...fresh(), cwd: column.project });
     },
     openQueueEdit(task) {
       show(
@@ -217,7 +263,8 @@ export function createTaskDialog(options: {
           cwd: task.cwd,
           name: task.name,
           prompt: task.prompt,
-          mode: isPermissionMode(task.permissionMode) ? task.permissionMode : storedMode(),
+          provider: task.provider ?? 'claude',
+          mode: task.permissionMode,
           images: task.images ?? [],
         },
       );
@@ -235,18 +282,17 @@ function field(label: string, input: HTMLElement, hint?: string): HTMLElement {
   ]);
 }
 
-function storedMode(): PermissionMode {
+function stored(key: string): string | null {
   try {
-    const stored = localStorage.getItem(MODE_KEY);
-    return isPermissionMode(stored) ? stored : DEFAULT_PERMISSION_MODE;
+    return localStorage.getItem(key);
   } catch {
-    return DEFAULT_PERMISSION_MODE;
+    return null;
   }
 }
 
-function saveMode(value: PermissionMode): void {
+function remember(key: string, value: string): void {
   try {
-    localStorage.setItem(MODE_KEY, value);
+    localStorage.setItem(key, value);
   } catch {
     // Remembering the choice is a convenience only.
   }

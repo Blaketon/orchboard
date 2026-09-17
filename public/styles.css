@@ -1614,3 +1614,97 @@ textarea {
   gap: 10px;
   font-size: 12px;
 }
+
+/* ---------- Codex ---------- */
+
+.agent-tag {
+  flex-shrink: 0;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.list .agent-tag {
+  margin-left: 8px;
+}
+
+.card-attention {
+  color: var(--blocked);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 12px;
+}
+
+.detail-error {
+  margin: 12px 20px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--blocked);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--blocked) 10%, var(--surface));
+  font-size: 13px;
+}
+
+.detail-error[hidden] {
+  display: none;
+}
+
+.approvals {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 20px;
+}
+
+.approvals:empty {
+  display: none;
+}
+
+.approval {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--working);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--working) 8%, var(--surface));
+}
+
+.approval-title {
+  margin: 0;
+  font-size: 14px;
+}
+
+.approval-reason {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.approval-detail {
+  max-height: 160px;
+  margin: 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--bg);
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.approval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

@@ -82,8 +82,12 @@ function card(agent: Agent, options: BoardOptions): HTMLButtonElement {
       el('span', { className: 'card-title', text: agent.name || agent.id }),
       el('span', { className: 'card-meta' }, [
         el('span', { className: 'card-project', text: projectLabel(projectKey(agent.cwd)) }),
+        agentTag(agent),
         el('span', { className: 'card-age', text: formatAge(agent.startedAt, options.now) }),
       ]),
+      agent.approvals?.length
+        ? el('span', { className: 'card-attention', text: 'Needs your approval' })
+        : null,
     ],
   );
 }
@@ -146,4 +150,9 @@ export function renderProjects(
   };
 
   list.replaceChildren(item(null), ...projects.map(item));
+}
+
+/** Marks Codex tasks; Claude Code agents are the default and go unmarked. */
+export function agentTag(agent: Agent): HTMLElement | null {
+  return agent.provider === 'codex' ? el('span', { className: 'agent-tag', text: 'Codex' }) : null;
 }

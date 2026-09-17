@@ -1,4 +1,4 @@
-import type { AgentState, Agent, SavedProject } from '../shared/api.ts';
+import type { Agent, AgentProvider, AgentState, SavedProject } from '../shared/api.ts';
 import { projectKey, projectLabel } from '../shared/projects.ts';
 
 export { projectKey, projectLabel };
@@ -12,6 +12,11 @@ export interface Project {
   /** True when the user added the project, so it can be renamed or removed. */
   readonly saved: boolean;
 }
+
+export const AGENT_LABELS: Readonly<Record<AgentProvider, string>> = {
+  claude: 'Claude Code',
+  codex: 'Codex',
+};
 
 export const BOARD_COLUMNS: readonly { readonly state: AgentState; readonly title: string }[] = [
   { state: 'blocked', title: 'Awaiting input' },

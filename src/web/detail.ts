@@ -1,5 +1,13 @@
-import type { Agent, SessionUsage, Transcript, TranscriptPart } from '../shared/api.ts';
-import { projectKey, projectLabel } from './agents.ts';
+import type {
+  Agent,
+  AgentProvider,
+  Approval,
+  ApprovalDecision,
+  SessionUsage,
+  Transcript,
+  TranscriptPart,
+} from '../shared/api.ts';
+import { AGENT_LABELS, projectKey, projectLabel } from './agents.ts';
 import { postJson, requestJson } from './api.ts';
 import { confirmDialog } from './dialogs.ts';
 import { el } from './dom.ts';
@@ -13,6 +21,8 @@ const STATE_LABELS: Readonly<Record<Agent['state'], string>> = {
   working: 'Working',
   done: 'Completed',
 };
+/** Who wrote an assistant message in the transcript. */
+const AGENT_NAMES: Readonly<Record<AgentProvider, string>> = { claude: 'Claude', codex: 'Codex' };
 
 export interface DetailPanel {
   open(agent: Agent): void;
@@ -53,6 +63,9 @@ export function createDetailPanel(options: {
   });
   const usage = el('div', { className: 'usage' });
   const log = el('div', { className: 'transcript' });
+  const failure = el('p', { className: 'detail-error', attrs: { role: 'alert' } });
+  failure.hidden = true;
+  const approvals = el('div', { className: 'approvals' });
   const replyInput = el('textarea', {
     className: 'field-input reply-input',
     attrs: { rows: '2', 'aria-label': 'Reply to the agent' },
@@ -78,7 +91,9 @@ export function createDetailPanel(options: {
         ]),
       ]),
       usage,
+      failure,
       log,
+      approvals,
       replyForm,
     ],
   );
@@ -112,7 +127,10 @@ export function createDetailPanel(options: {
     if (!agent) return;
     void confirmDialog({
       title: 'Delete this agent?',
-      message: `"${agent.name || agent.id}" and its conversation will be deleted, along with its git worktree when that is safe. This cannot be undone.`,
+      message:
+        agent.provider === 'codex'
+          ? `"${agent.name || agent.id}" will be removed from Orchboard. Codex keeps the conversation in its own history.`
+          : `"${agent.name || agent.id}" and its conversation will be deleted, along with its git worktree when that is safe. This cannot be undone.`,
       confirmLabel: 'Delete',
     }).then(async (confirmed) => {
       if (!confirmed) return;
@@ -181,6 +199,7 @@ export function createDetailPanel(options: {
         attrs: { 'data-state': agent.state },
         text: STATE_LABELS[agent.state],
       }),
+      el('span', { className: 'agent-tag', text: AGENT_LABELS[agent.provider] }),
       el('span', { text: projectLabel(projectKey(agent.cwd)), attrs: { title: agent.cwd } }),
       el('span', { text: `started ${formatAgo(agent.startedAt, Date.now())}` }),
     );
@@ -192,9 +211,80 @@ export function createDetailPanel(options: {
     const canReply = agent.pid === null;
     replyInput.disabled = !canReply;
     replyButton.disabled = !canReply;
+    const waiting = agent.approvals?.length ?? 0;
     replyInput.placeholder = canReply
       ? 'Reply to the agent (Ctrl+Enter to send)'
-      : 'The agent is working. You can reply once it stops or asks for input.';
+      : waiting
+        ? 'The agent is waiting for your decision above.'
+        : 'The agent is working. You can reply once it stops or asks for input.';
+
+    const codex = agent.provider === 'codex';
+    terminalButton.title = codex
+      ? 'Continue this task in a terminal (codex resume)'
+      : 'Open this agent in a terminal (claude attach)';
+    deleteButton.title = codex
+      ? 'Remove this task from Orchboard'
+      : 'Delete the session and its worktree (claude rm)';
+    failure.hidden = !agent.error;
+    failure.textContent = agent.error ?? '';
+    renderApprovals(agent);
+  }
+
+  let approvalsShown = '';
+  function renderApprovals(agent: Agent): void {
+    const pending = agent.approvals ?? [];
+    // Snapshots arrive often; rebuilding the same buttons would steal focus mid-click.
+    const signature = JSON.stringify([agent.id, pending]);
+    if (signature === approvalsShown) return;
+    approvalsShown = signature;
+    approvals.replaceChildren(...pending.map((approval) => renderApproval(agent, approval)));
+  }
+
+  function renderApproval(agent: Agent, approval: Approval): HTMLElement {
+    const buttons: HTMLButtonElement[] = [];
+    const decide = (decision: ApprovalDecision) => {
+      for (const button of buttons) button.disabled = true;
+      postJson(
+        `/api/agents/${encodeURIComponent(agent.id)}/approvals/${encodeURIComponent(approval.id)}`,
+        { decision },
+      ).catch((error: unknown) => {
+        for (const button of buttons) button.disabled = false;
+        showToast(error instanceof Error ? error.message : String(error), 'error');
+      });
+    };
+    const button = (text: string, decision: ApprovalDecision, className = 'button') => {
+      const element = el('button', {
+        className: `${className} button-small`,
+        text,
+        attrs: { type: 'button' },
+        on: {
+          click: () => {
+            decide(decision);
+          },
+        },
+      });
+      buttons.push(element);
+      return element;
+    };
+
+    return el('section', { className: 'approval', attrs: { 'aria-label': approval.title } }, [
+      el('h3', { className: 'approval-title', text: approval.title }),
+      approval.reason ? el('p', { className: 'approval-reason', text: approval.reason }) : null,
+      approval.detail ? el('pre', { className: 'approval-detail', text: approval.detail }) : null,
+      approval.declineOnly
+        ? el('p', {
+            className: 'approval-reason',
+            text: 'Orchboard cannot answer this here. Decline it, or reply in a terminal.',
+          })
+        : null,
+      el('div', { className: 'approval-actions' }, [
+        approval.declineOnly ? null : button('Approve', 'accept', 'button button-primary'),
+        approval.canAllowForSession && !approval.declineOnly
+          ? button('Approve for this session', 'acceptForSession')
+          : null,
+        button('Decline', 'decline', 'button button-danger'),
+      ]),
+    ]);
   }
 
   async function refresh(): Promise<void> {
@@ -232,7 +322,7 @@ export function createDetailPanel(options: {
               el('header', { className: 'entry-header' }, [
                 el('span', {
                   className: 'entry-role',
-                  text: entry.role === 'user' ? 'You' : 'Claude',
+                  text: entry.role === 'user' ? 'You' : AGENT_NAMES[current?.provider ?? 'claude'],
                 }),
                 el('time', { className: 'entry-time', text: formatClock(entry.timestamp) }),
               ]),
