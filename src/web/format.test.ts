@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { formatAge, formatCost, formatPercent, formatTokens } from './format.ts';
+import { formatAge, formatAgo, formatCost, formatPercent, formatTokens } from './format.ts';
 
 describe('formatAge', () => {
   const now = 10 * 24 * 3_600_000;
@@ -16,6 +16,13 @@ describe('formatAge', () => {
 
   it('treats future timestamps as just now', () => {
     assert.equal(formatAge(now + 60_000, now), 'just now');
+  });
+});
+
+describe('formatAgo', () => {
+  it('reads as part of a sentence', () => {
+    assert.equal(formatAgo(1_000, 5_000), 'just now');
+    assert.equal(formatAgo(0, 12 * 60_000), '12m ago');
   });
 });
 

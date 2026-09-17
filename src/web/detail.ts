@@ -3,7 +3,7 @@ import { projectKey, projectLabel } from './agents.ts';
 import { postJson, requestJson } from './api.ts';
 import { confirmDialog } from './dialogs.ts';
 import { el } from './dom.ts';
-import { formatAge, formatClock, formatCost, formatPercent, formatTokens } from './format.ts';
+import { formatAgo, formatClock, formatCost, formatPercent, formatTokens } from './format.ts';
 import { renderMarkdown } from './markdown.ts';
 import { showToast } from './toast.ts';
 
@@ -182,7 +182,7 @@ export function createDetailPanel(options: {
         text: STATE_LABELS[agent.state],
       }),
       el('span', { text: projectLabel(projectKey(agent.cwd)), attrs: { title: agent.cwd } }),
-      el('span', { text: `started ${formatAge(agent.startedAt, Date.now())} ago` }),
+      el('span', { text: `started ${formatAgo(agent.startedAt, Date.now())}` }),
     );
 
     const running = agent.pid !== null || agent.state === 'working';

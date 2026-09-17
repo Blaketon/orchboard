@@ -15,6 +15,12 @@ export function formatAge(since: number, now: number): string {
   return `${Math.floor(elapsed / DAY)}d`;
 }
 
+/** Elapsed time for a sentence: "just now" or "12m ago". */
+export function formatAgo(since: number, now: number): string {
+  const age = formatAge(since, now);
+  return age === 'just now' ? age : `${age} ago`;
+}
+
 /** "950", "12.3k", "1.2M". */
 export function formatTokens(count: number): string {
   if (count < 1000) return String(count);
