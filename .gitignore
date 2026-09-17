@@ -8,7 +8,6 @@ npm-debug.log*
 Thumbs.db
 
 # Local tooling output
-graphify-out/
 /.claude/worktrees
 .claude/settings.local.json
 
