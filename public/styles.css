@@ -316,12 +316,6 @@ textarea {
   background: var(--surface);
 }
 
-.page-title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 650;
-}
-
 .search {
   flex: 0 1 320px;
   margin-left: auto;
@@ -946,4 +940,97 @@ textarea {
   background: var(--blocked);
   color: #fff;
   font-weight: 600;
+}
+
+/* ---------- View switch and list ---------- */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.view-switch {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg);
+}
+
+.view-button {
+  padding: 4px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.view-button[aria-pressed='true'] {
+  background: var(--surface-2);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.list {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.list th {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.list td {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.list tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.list tbody tr:hover {
+  background: var(--surface-2);
+}
+
+.list-open {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+}
+
+.list-open:hover {
+  text-decoration: underline;
+}
+
+.list-muted {
+  color: var(--muted);
+}
+
+.list-age {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.list tr[data-state] .badge {
+  white-space: nowrap;
 }

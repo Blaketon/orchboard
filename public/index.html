@@ -38,7 +38,15 @@
 
       <main class="main">
         <header class="topbar">
-          <h1 class="page-title">Board</h1>
+          <h1 class="visually-hidden">Orchboard</h1>
+          <div class="view-switch" role="group" aria-label="View">
+            <button class="view-button" type="button" data-view="board" aria-pressed="true">
+              Board
+            </button>
+            <button class="view-button" type="button" data-view="list" aria-pressed="false">
+              List
+            </button>
+          </div>
           <input
             id="search"
             class="search"

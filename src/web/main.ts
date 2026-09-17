@@ -1,10 +1,11 @@
-import type { AgentSnapshot, QueueState, SavedProjectView } from '../shared/api.ts';
+import type { AgentSnapshot, ClaudeAgent, QueueState, SavedProjectView } from '../shared/api.ts';
 import { filterAgents, listProjects, type Project } from './agents.ts';
 import { errorMessage, requestJson } from './api.ts';
 import { renderBoard, renderProjects } from './board.ts';
 import { createDetailPanel } from './detail.ts';
 import { confirmDialog, formDialog } from './dialogs.ts';
 import { byId } from './dom.ts';
+import { renderList } from './list.ts';
 import { connectLiveAgents, type ConnectionState } from './live.ts';
 import { createTaskDialog } from './task-dialog.ts';
 import { renderQueueColumns, type QueueHandlers } from './queue.ts';
@@ -24,6 +25,26 @@ const projectList = byId('project-list', 'ul');
 const search = byId('search', 'input');
 const detail = createDetailPanel();
 
+type View = 'board' | 'list';
+const VIEW_KEY = 'orchboard-view';
+
+function storedView(): View {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'board';
+  } catch {
+    return 'board';
+  }
+}
+
+function saveView(value: View): void {
+  try {
+    localStorage.setItem(VIEW_KEY, value);
+  } catch {
+    // Remembering the view is a convenience only.
+  }
+}
+
+let view: View = storedView();
 let snapshot: AgentSnapshot | undefined;
 let savedProjects: SavedProjectView[] = [];
 let queue: QueueState = { columns: [], tasks: [] };
@@ -238,17 +259,43 @@ function render(): void {
     onRemove: (project) => void removeProject(project),
   });
 
-  renderBoard(board, filterAgents(snapshot.agents, { project: selectedProject, query }), {
+  const visible = filterAgents(snapshot.agents, { project: selectedProject, query });
+  const common = {
     now: Date.now(),
     emptyText: query ? 'No matches' : 'Nothing here',
-    onOpen: (agent) => {
+    onOpen: (agent: ClaudeAgent) => {
       detail.open(agent);
     },
-    // Queue columns belong to one project, so they appear once a project is selected.
-    extraColumns: selectedProject ? renderQueueColumns(selectedProject, queue, queueHandlers) : [],
-  });
+  };
+  if (view === 'list') {
+    renderList(board, visible, common);
+  } else {
+    renderBoard(board, visible, {
+      ...common,
+      // Queue columns belong to one project, so they appear once a project is selected.
+      extraColumns: selectedProject
+        ? renderQueueColumns(selectedProject, queue, queueHandlers)
+        : [],
+    });
+  }
   detail.update(snapshot.agents);
 }
+
+const viewButtons = [...document.querySelectorAll<HTMLButtonElement>('.view-button')];
+function setView(next: View): void {
+  view = next;
+  for (const button of viewButtons) {
+    button.setAttribute('aria-pressed', String(button.dataset.view === view));
+  }
+  saveView(view);
+  render();
+}
+for (const button of viewButtons) {
+  button.addEventListener('click', () => {
+    setView(button.dataset.view === 'list' ? 'list' : 'board');
+  });
+}
+setView(view);
 
 search.addEventListener('input', () => {
   query = search.value;
