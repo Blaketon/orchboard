@@ -158,6 +158,31 @@ describe('claude actions', () => {
   });
 });
 
+describe('remove', () => {
+  const finished: ClaudeAgent = {
+    id: '1a2b3c4d',
+    sessionId: 's',
+    name: 'Done',
+    cwd: '/work',
+    startedAt: 0,
+    state: 'done',
+    pid: null,
+  };
+
+  it('deletes a finished agent with claude rm', async () => {
+    const { calls, run } = recorder();
+    await createClaudeActions(run).remove(finished);
+    assert.deepEqual(calls, [{ args: ['rm', '1a2b3c4d'], options: { fixedArgs: true } }]);
+  });
+
+  it('refuses while the agent is running', async () => {
+    await rejectsWithStatus(
+      createClaudeActions(recorder().run).remove({ ...finished, state: 'working', pid: 7 }),
+      409,
+    );
+  });
+});
+
 describe('defaultName', () => {
   it('shortens long first lines', () => {
     const name = defaultName('a'.repeat(100));

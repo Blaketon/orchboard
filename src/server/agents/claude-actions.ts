@@ -13,6 +13,7 @@ export interface ClaudeActions {
   start(request: unknown): Promise<StartTaskResponse>;
   reply(agent: ClaudeAgent, request: unknown): Promise<void>;
   stop(agent: ClaudeAgent): Promise<void>;
+  remove(agent: ClaudeAgent): Promise<void>;
 }
 
 /** Starts, continues, and stops Claude Code background agents through the `claude` CLI. */
@@ -59,6 +60,15 @@ export function createClaudeActions(run: RunClaude = runClaude): ClaudeActions {
       }
       if (!AGENT_ID.test(agent.id)) throw new HttpError(400, 'Invalid agent id.');
       await runOrFail(['stop', agent.id], { fixedArgs: true });
+    },
+
+    async remove(agent) {
+      if (agent.pid !== null || agent.state === 'working') {
+        throw new HttpError(409, 'Stop the agent before deleting it.');
+      }
+      if (!AGENT_ID.test(agent.id)) throw new HttpError(400, 'Invalid agent id.');
+      // `claude rm` refuses on its own when a worktree has unpushed work, and says why.
+      await runOrFail(['rm', agent.id], { fixedArgs: true });
     },
   };
 }

@@ -225,6 +225,15 @@ export function createServer(options: ServerOptions): http.Server {
       },
     },
     {
+      method: 'DELETE',
+      path: '/api/agents/:id',
+      handler: async (_req, res, params) => {
+        await options.actions.remove(await findAgent(params.id));
+        options.agents.refresh();
+        sendJson(res, 202, { ok: true });
+      },
+    },
+    {
       method: 'GET',
       path: '/api/events',
       handler: (req, res) => {

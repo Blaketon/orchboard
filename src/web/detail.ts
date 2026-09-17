@@ -1,6 +1,7 @@
 import type { ClaudeAgent, SessionUsage, Transcript, TranscriptPart } from '../shared/api.ts';
 import { projectKey, projectLabel } from './agents.ts';
-import { postJson } from './api.ts';
+import { postJson, requestJson } from './api.ts';
+import { confirmDialog } from './dialogs.ts';
 import { el } from './dom.ts';
 import { formatAge, formatClock, formatCost, formatPercent, formatTokens } from './format.ts';
 import { showToast } from './toast.ts';
@@ -19,7 +20,9 @@ export interface DetailPanel {
 }
 
 /** A side panel showing one agent's live transcript and usage, refreshed while open. */
-export function createDetailPanel(): DetailPanel {
+export function createDetailPanel(options: {
+  readonly onHide: (agent: ClaudeAgent) => void;
+}): DetailPanel {
   const title = el('h2', { className: 'detail-title', attrs: { id: 'detail-title' } });
   const meta = el('p', { className: 'detail-meta' });
   const closeButton = el('button', {
@@ -36,6 +39,16 @@ export function createDetailPanel(): DetailPanel {
     className: 'button',
     text: 'Terminal',
     attrs: { type: 'button', title: 'Open this agent in a terminal window (claude attach)' },
+  });
+  const hideButton = el('button', {
+    className: 'button',
+    text: 'Hide',
+    attrs: { type: 'button', title: 'Hide this agent from the board in this browser' },
+  });
+  const deleteButton = el('button', {
+    className: 'button button-danger',
+    text: 'Delete',
+    attrs: { type: 'button', title: 'Delete the session and its worktree (claude rm)' },
   });
   const usage = el('div', { className: 'usage' });
   const log = el('div', { className: 'transcript' });
@@ -55,7 +68,13 @@ export function createDetailPanel(): DetailPanel {
     [
       el('header', { className: 'detail-header' }, [
         el('div', {}, [title, meta]),
-        el('div', { className: 'detail-actions' }, [terminalButton, stopButton, closeButton]),
+        el('div', { className: 'detail-actions' }, [
+          terminalButton,
+          stopButton,
+          hideButton,
+          deleteButton,
+          closeButton,
+        ]),
       ]),
       usage,
       log,
@@ -77,6 +96,32 @@ export function createDetailPanel(): DetailPanel {
     if (!agent) return;
     postJson(`/api/agents/${encodeURIComponent(agent.id)}/terminal`, {}).catch((error: unknown) => {
       showToast(error instanceof Error ? error.message : String(error), 'error');
+    });
+  });
+
+  hideButton.addEventListener('click', () => {
+    const agent = current;
+    if (!agent) return;
+    dialog.close();
+    options.onHide(agent);
+  });
+
+  deleteButton.addEventListener('click', () => {
+    const agent = current;
+    if (!agent) return;
+    void confirmDialog({
+      title: 'Delete this agent?',
+      message: `"${agent.name || agent.id}" and its conversation will be deleted, along with its git worktree when that is safe. This cannot be undone.`,
+      confirmLabel: 'Delete',
+    }).then(async (confirmed) => {
+      if (!confirmed) return;
+      try {
+        await requestJson('DELETE', `/api/agents/${encodeURIComponent(agent.id)}`);
+        dialog.close();
+        showToast('Agent deleted', 'success');
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : String(error), 'error');
+      }
     });
   });
 
@@ -141,6 +186,7 @@ export function createDetailPanel(): DetailPanel {
 
     const running = agent.pid !== null || agent.state === 'working';
     stopButton.hidden = !running;
+    deleteButton.hidden = running;
     // A running agent can't take a reply: resuming it would start a copy instead.
     const canReply = agent.pid === null;
     replyInput.disabled = !canReply;

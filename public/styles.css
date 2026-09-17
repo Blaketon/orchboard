@@ -1179,3 +1179,41 @@ textarea {
   color: var(--muted);
   font-size: 12px;
 }
+
+/* ---------- Hidden agents ---------- */
+
+.hidden-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 24px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--focus);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+.column-clear {
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.column-clear:hover {
+  color: var(--text);
+  text-decoration: underline;
+}

@@ -3,6 +3,7 @@ import { filterAgents, listProjects, type Project } from './agents.ts';
 import { errorMessage, requestJson } from './api.ts';
 import { renderBoard, renderProjects } from './board.ts';
 import { createDetailPanel } from './detail.ts';
+import { HiddenAgents } from './hidden-agents.ts';
 import { confirmDialog, formDialog } from './dialogs.ts';
 import { byId } from './dom.ts';
 import { renderList } from './list.ts';
@@ -28,7 +29,19 @@ const notice = byId('notice', 'p');
 const connection = byId('connection', 'span');
 const projectList = byId('project-list', 'ul');
 const search = byId('search', 'input');
-const detail = createDetailPanel();
+const hiddenBar = byId('hidden-bar', 'div');
+const hiddenLabel = byId('hidden-label', 'span');
+const hiddenToggle = byId('hidden-toggle', 'button');
+const hiddenReset = byId('hidden-reset', 'button');
+const hidden = new HiddenAgents();
+let showHidden = false;
+const detail = createDetailPanel({
+  onHide: (agent) => {
+    hidden.hide([agent.id]);
+    showToast('Agent hidden from the board');
+    render();
+  },
+});
 
 type View = 'board' | 'list';
 const VIEW_KEY = 'orchboard-view';
@@ -280,7 +293,17 @@ function render(): void {
     onRemove: (project) => void removeProject(project),
   });
 
-  const visible = filterAgents(snapshot.agents, { project: selectedProject, query });
+  hidden.prune(new Set(snapshot.agents.map((agent) => agent.id)));
+  const matching = filterAgents(snapshot.agents, { project: selectedProject, query });
+  const visible = showHidden ? matching : matching.filter((agent) => !hidden.has(agent.id));
+  const hiddenCount = matching.length - visible.length;
+  // Only mention hidden agents that the current project and search would otherwise show.
+  hiddenBar.hidden = showHidden ? hidden.size === 0 : hiddenCount === 0;
+  hiddenLabel.textContent = showHidden
+    ? `Showing ${hidden.size} hidden agent${hidden.size === 1 ? '' : 's'}`
+    : `${hiddenCount} hidden agent${hiddenCount === 1 ? '' : 's'} not shown`;
+  hiddenToggle.textContent = showHidden ? 'Hide them' : 'Show';
+
   const common = {
     now: Date.now(),
     emptyText: query ? 'No matches' : 'Nothing here',
@@ -297,10 +320,25 @@ function render(): void {
       extraColumns: selectedProject
         ? renderQueueColumns(selectedProject, queue, queueHandlers)
         : [],
+      onClearCompleted: (agents) => {
+        hidden.hide(agents.map((agent) => agent.id));
+        showToast(`Hid ${agents.length} completed agent${agents.length === 1 ? '' : 's'}`);
+        render();
+      },
     });
   }
   detail.update(snapshot.agents);
 }
+
+hiddenToggle.addEventListener('click', () => {
+  showHidden = !showHidden;
+  render();
+});
+hiddenReset.addEventListener('click', () => {
+  hidden.showAll();
+  showHidden = false;
+  render();
+});
 
 const viewButtons = [...document.querySelectorAll<HTMLButtonElement>('.view-button')];
 function setView(next: View): void {

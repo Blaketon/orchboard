@@ -9,6 +9,8 @@ export interface BoardOptions {
   readonly onOpen: (agent: ClaudeAgent) => void;
   /** Extra columns after the status columns, e.g. the selected project's queue. */
   readonly extraColumns?: readonly HTMLElement[];
+  /** Hides every completed agent currently shown. */
+  readonly onClearCompleted?: (agents: readonly ClaudeAgent[]) => void;
 }
 
 export function renderBoard(
@@ -32,6 +34,18 @@ export function renderBoard(
         el('header', { className: 'column-header' }, [
           el('h2', { className: 'column-title', text: title }),
           el('span', { className: 'column-count', text: String(cards.length) }),
+          state === 'done' && cards.length && options.onClearCompleted
+            ? el('button', {
+                className: 'column-clear',
+                text: 'Clear',
+                attrs: { type: 'button', title: 'Hide completed agents from the board' },
+                on: {
+                  click: () => {
+                    options.onClearCompleted?.(groups.done);
+                  },
+                },
+              })
+            : null,
         ]),
         el(
           'div',

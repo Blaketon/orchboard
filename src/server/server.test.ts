@@ -57,6 +57,10 @@ describe('server', () => {
       actionCalls.push(['stop', target.id]);
       return Promise.reject(new HttpError(409, 'This agent is not running.'));
     },
+    remove: (target) => {
+      actionCalls.push(['remove', target.id]);
+      return Promise.resolve();
+    },
   };
   const server = createServer({
     host: '127.0.0.1',
@@ -155,6 +159,9 @@ describe('server', () => {
       body: { error: 'This agent is not running.' },
     });
     assert.equal((await postJson('/api/agents/nope/reply', { prompt: 'Yes' })).status, 404);
+
+    assert.equal((await request('/api/agents/a', { method: 'DELETE' })).status, 202);
+    assert.deepEqual(actionCalls.at(-1), ['remove', 'a']);
 
     assert.equal((await postJson('/api/agents/a/terminal', {})).status, 202);
     assert.deepEqual(actionCalls.at(-1), ['terminal', 'a']);
