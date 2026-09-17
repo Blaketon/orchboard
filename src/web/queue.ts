@@ -1,6 +1,7 @@
 import type { QueueColumn, QueuedTask, QueueState } from '../shared/api.ts';
-import { PERMISSION_MODES } from '../shared/permission-modes.ts';
+import { AGENT_LABELS } from './agents.ts';
 import { el } from './dom.ts';
+import { modesFor } from './task-dialog.ts';
 
 const DRAG_TYPE = 'application/x-orchboard-task';
 
@@ -82,7 +83,8 @@ function renderColumn(
 }
 
 function renderTask(task: QueuedTask, handlers: QueueHandlers): HTMLElement {
-  const mode = PERMISSION_MODES.find((option) => option.value === task.permissionMode)?.label;
+  const provider = task.provider ?? 'claude';
+  const mode = modesFor(provider).find((option) => option.value === task.permissionMode)?.label;
   const card = el(
     'div',
     {
@@ -93,6 +95,9 @@ function renderTask(task: QueuedTask, handlers: QueueHandlers): HTMLElement {
       el('span', { className: 'card-title', text: task.name }),
       el('span', { className: 'card-meta' }, [
         el('span', { className: 'card-project', text: mode ?? task.permissionMode }),
+        provider === 'codex'
+          ? el('span', { className: 'agent-tag', text: AGENT_LABELS.codex })
+          : null,
         task.images?.length
           ? el('span', {
               text: `${task.images.length} image${task.images.length === 1 ? '' : 's'}`,

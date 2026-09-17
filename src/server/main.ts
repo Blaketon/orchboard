@@ -1,3 +1,6 @@
+#!/usr/bin/env node
+import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 import type { Agent } from '../shared/api.ts';
 import { projectKey } from '../shared/projects.ts';
@@ -7,8 +10,10 @@ import { createClaudeActions } from './agents/claude-actions.ts';
 import { listClaudeAgents } from './agents/claude-agents.ts';
 import { openAgentTerminal } from './agents/terminal.ts';
 import { AttachmentStore } from './attachments/attachment-store.ts';
+import { parseCliArgs, USAGE, type CliOptions } from './cli-args.ts';
 import { CodexRunner } from './codex/codex-runner.ts';
 import { loadConfig, type Config } from './config.ts';
+import { createDemo } from './demo/demo-mode.ts';
 import { ProjectDocs } from './projects/project-docs.ts';
 import { ProjectsStore } from './projects/projects-store.ts';
 import { QueueStore } from './queue/queue-store.ts';
@@ -18,24 +23,43 @@ import { listSkills, skillRoots } from './skills/skills.ts';
 import { TranscriptReader } from './transcripts/transcript-reader.ts';
 import { UsageService } from './usage/usage-service.ts';
 
+// Two levels up from both src/server (development) and dist/server (built).
+const packageRoot = path.resolve(import.meta.dirname, '..', '..');
+
+let cli: CliOptions;
 let config: Config;
 try {
+  cli = parseCliArgs(process.argv.slice(2));
   config = loadConfig();
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   process.exit(1);
 }
 
-const attachments = new AttachmentStore(config.dataDir);
+if (cli.help) {
+  console.log(USAGE);
+  process.exit(0);
+}
+if (cli.version) {
+  console.log(readVersion());
+  process.exit(0);
+}
+
+const port = cli.port ?? config.port;
+const host = cli.host ?? config.host;
+const demo = cli.demo ? await createDemo() : undefined;
+const dataDir = demo?.dataDir ?? config.dataDir;
+
+const attachments = new AttachmentStore(dataDir);
 const codex = new CodexRunner({
-  dataDir: config.dataDir,
+  dataDir,
   codexDir: config.codexDir,
   attachments,
   onChange: () => {
     monitor.refresh();
   },
 });
-await codex.load();
+if (!demo) await codex.load();
 
 // Codex tasks stay visible even when Claude Code can't be listed.
 let claudeAgents: readonly Agent[] = [];
@@ -59,58 +83,69 @@ const actions = createAgentActions({
   codex,
 });
 const claudeTranscripts = new TranscriptReader(config.claudeDir);
-const projects = new ProjectsStore(config.dataDir);
-const queue = new QueueStore(config.dataDir, actions);
+const projects = new ProjectsStore(dataDir);
+const queue = new QueueStore(dataDir, demo?.actions ?? actions);
 const server = createServer({
-  host: config.host,
-  agents: monitor,
-  transcripts: {
+  host,
+  agents: demo?.agents ?? monitor,
+  transcripts: demo?.transcripts ?? {
     read: (agent) =>
       agent.provider === 'codex' ? codex.transcript(agent) : claudeTranscripts.read(agent),
   },
-  actions,
+  actions: demo?.actions ?? actions,
   projects,
   projectDocs: new ProjectDocs({
     isKnownProject: async (key) =>
       (await projects.list()).some((project) => project.path === key) ||
-      (await monitor.ready()).agents.some((agent) => projectKey(agent.cwd) === key),
+      (await (demo?.agents ?? monitor).ready()).agents.some(
+        (agent) => projectKey(agent.cwd) === key,
+      ),
   }),
-  skills: () => listSkills(skillRoots(config.claudeDir, config.codexDir)),
+  skills: demo?.skills ?? (() => listSkills(skillRoots(config.claudeDir, config.codexDir))),
   queue,
   attachments,
-  usage: new UsageService({ claudeDir: config.claudeDir, codexDir: config.codexDir }),
-  openTerminal: (agent) => openAgentTerminal(agent),
-  // Two levels up from both src/server (development) and dist/server (built).
+  usage:
+    demo?.usage ?? new UsageService({ claudeDir: config.claudeDir, codexDir: config.codexDir }),
+  openTerminal: demo?.openTerminal ?? ((agent) => openAgentTerminal(agent)),
   staticRoots: {
-    publicDir: path.resolve(import.meta.dirname, '..', '..', 'public'),
-    buildDir: path.resolve(import.meta.dirname, '..', '..', 'dist'),
+    publicDir: path.join(packageRoot, 'public'),
+    buildDir: path.join(packageRoot, 'dist'),
   },
 });
 
 server.on('error', (error: NodeJS.ErrnoException) => {
   if (error.code === 'EADDRINUSE') {
     console.error(
-      `Port ${config.port} is already in use. Is Orchboard already running? ` +
-        'Set ORCHBOARD_PORT to use another port.',
+      `Port ${port} is already in use. Is Orchboard already running? ` +
+        'Use --port to pick another one.',
     );
     process.exit(1);
   }
   throw error;
 });
 
-server.listen(config.port, config.host, () => {
+server.listen(port, host, () => {
   const address = server.address();
-  const port = typeof address === 'object' && address ? address.port : config.port;
-  const loopback = isLoopbackHost(config.host);
+  const actualPort = typeof address === 'object' && address ? address.port : port;
+  const loopback = isLoopbackHost(host);
+  const url = `http://${loopback ? 'localhost' : host}:${actualPort}`;
 
-  console.log(`Orchboard running at http://${loopback ? 'localhost' : config.host}:${port}`);
-  if (!loopback) {
-    console.warn(
-      `Warning: listening on ${config.host}. Anyone who can reach this address can use Orchboard.`,
+  console.log(`Orchboard running at ${url}`);
+  if (demo) {
+    console.log(
+      'Demo mode: sample data only. No agents are started and no real files are touched.',
     );
   }
-  monitor.start();
-  void pruneAttachments();
+  if (!loopback) {
+    console.warn(
+      `Warning: listening on ${host}. Anyone who can reach this address can use Orchboard.`,
+    );
+  }
+  if (cli.open) openBrowser(url);
+  if (!demo) {
+    monitor.start();
+    void pruneAttachments();
+  }
 });
 
 /** Agents look at pasted images early in their task, so month-old ones go unless still queued. */
@@ -124,6 +159,31 @@ async function pruneAttachments(): Promise<void> {
   } catch (error) {
     console.warn('Could not clean up old attachments:', error);
   }
+}
+
+function readVersion(): string {
+  try {
+    const text = fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8');
+    const parsed = JSON.parse(text) as { version?: unknown };
+    return typeof parsed.version === 'string' ? parsed.version : '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
+
+/** Opens the dashboard in the default browser, ignoring desktops without one. */
+function openBrowser(url: string): void {
+  const command =
+    process.platform === 'win32'
+      ? { file: 'cmd.exe', args: ['/d', '/s', '/c', 'start', '""', url] }
+      : process.platform === 'darwin'
+        ? { file: 'open', args: [url] }
+        : { file: 'xdg-open', args: [url] };
+  const child = spawn(command.file, command.args, { detached: true, stdio: 'ignore' });
+  child.once('error', () => {
+    console.warn(`Could not open a browser. Open ${url} yourself.`);
+  });
+  child.unref();
 }
 
 function shutdown(): void {

@@ -23,6 +23,15 @@
   "license": "MIT",
   "author": "Blaketon (https://github.com/Blaketon)",
   "type": "module",
+  "bin": {
+    "orchboard": "dist/server/main.js"
+  },
+  "files": [
+    "dist",
+    "public",
+    "!dist/**/*.test.js",
+    "!**/*.map"
+  ],
   "engines": {
     "node": ">=22.18"
   },
@@ -34,7 +43,9 @@
     "test": "node --test \"src/**/*.test.ts\"",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "demo": "node src/server/main.ts --demo",
+    "prepublishOnly": "npm run build"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
