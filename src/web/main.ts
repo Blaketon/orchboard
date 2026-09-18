@@ -15,6 +15,7 @@ import { renderQueueColumns, type QueueHandlers } from './queue.ts';
 import { createSettingsDialog } from './settings-dialog.ts';
 import { createSkillsDialog } from './skills-dialog.ts';
 import { SettingsStore } from './settings-store.ts';
+import { loadStatusLayout, saveStatusLayout, type StatusLayout } from './status-layout.ts';
 import { unlockAudioOnInteraction } from './sound.ts';
 import { applyTheme } from './theme.ts';
 import { createUsageWidget } from './usage-widget.ts';
@@ -76,6 +77,7 @@ let savedProjects: SavedProjectView[] = [];
 let queue: QueueState = { columns: [], tasks: [] };
 let selectedProject: string | null = null;
 let query = '';
+let statusLayout = loadStatusLayout();
 
 const settings = new SettingsStore();
 settings.subscribe((current) => {
@@ -359,6 +361,19 @@ function render(): void {
       extraColumns: selectedProject
         ? renderQueueColumns(selectedProject, queue, queueHandlers)
         : [],
+      // Collapsing the status columns only makes room for the queue, so it needs a project.
+      ...(selectedProject
+        ? {
+            status: {
+              layout: statusLayout,
+              onChange: (next: StatusLayout) => {
+                statusLayout = next;
+                saveStatusLayout(next);
+                render();
+              },
+            },
+          }
+        : {}),
       onClearCompleted: (agents) => {
         hidden.hide(agents.map((agent) => agent.id));
         showToast(`Hid ${agents.length} completed agent${agents.length === 1 ? '' : 's'}`);

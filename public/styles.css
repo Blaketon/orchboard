@@ -638,6 +638,116 @@ textarea {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---------- Collapsed status rail ---------- */
+
+/* The status columns folded into one narrow stack, leaving the width to the project's queue. */
+.status-rail {
+  display: flex;
+  flex: 0 0 240px;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.status-rail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 4px 0 14px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.status-rail .status-tile {
+  flex: none;
+  max-width: none;
+}
+
+.status-tile[data-attention='true'] {
+  border-color: color-mix(in srgb, var(--state) 55%, var(--border));
+  background: color-mix(in srgb, var(--state) 10%, var(--surface-2));
+}
+
+.status-tile-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 10px;
+}
+
+.status-tile-toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 4px 10px 12px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.status-tile-toggle::before {
+  content: '';
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--state);
+}
+
+.status-tile-toggle .column-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-tile-chevron {
+  width: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* The status columns' collapse button, kept from making its header taller than its neighbours'. */
+.column-collapse {
+  margin: -4px -4px -4px 0;
+}
+
+.status-tile-toggle:hover .column-title {
+  text-decoration: underline;
+}
+
+.card-compact {
+  gap: 4px;
+  padding: 6px 10px;
+}
+
+.card-compact-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.card-compact .card-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ---------- Detail panel ---------- */
 
 .detail {
