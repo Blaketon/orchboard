@@ -210,6 +210,7 @@ function demoQueue(projects: readonly string[], now: number): unknown {
         prompt:
           'The empty cart page overflows on a 375px wide screen. Find the cause and fix it, then add a regression test.',
         permissionMode: 'acceptEdits',
+        model: 'sonnet',
         images: [],
         createdAt: now - 2 * HOUR,
       },

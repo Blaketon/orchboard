@@ -82,9 +82,15 @@ function renderColumn(
   ]);
 }
 
+/** The agent a queued task will run on and its model; an unset model is the agent's default. */
+export function taskRunner(task: QueuedTask): { agent: string; model: string } {
+  return { agent: AGENT_LABELS[task.provider ?? 'claude'], model: task.model ?? 'Default model' };
+}
+
 function renderTask(task: QueuedTask, handlers: QueueHandlers): HTMLElement {
   const provider = task.provider ?? 'claude';
   const mode = modesFor(provider).find((option) => option.value === task.permissionMode)?.label;
+  const runner = taskRunner(task);
   const card = el(
     'div',
     {
@@ -93,11 +99,16 @@ function renderTask(task: QueuedTask, handlers: QueueHandlers): HTMLElement {
     },
     [
       el('span', { className: 'card-title', text: task.name }),
+      el('span', { className: 'queue-card-runner' }, [
+        el('span', { className: 'agent-tag', text: runner.agent }),
+        el('span', {
+          className: 'queue-card-model',
+          text: runner.model,
+          attrs: { title: `Model: ${runner.model}` },
+        }),
+      ]),
       el('span', { className: 'card-meta' }, [
         el('span', { className: 'card-project', text: mode ?? task.permissionMode }),
-        provider === 'codex'
-          ? el('span', { className: 'agent-tag', text: AGENT_LABELS.codex })
-          : null,
         task.images?.length
           ? el('span', {
               text: `${task.images.length} image${task.images.length === 1 ? '' : 's'}`,

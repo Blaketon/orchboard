@@ -467,6 +467,21 @@ textarea {
   opacity: 0.4;
 }
 
+.queue-card-runner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.queue-card-model {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .queue-card-actions {
   display: flex;
   align-items: center;
