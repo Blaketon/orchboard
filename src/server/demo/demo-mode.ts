@@ -23,6 +23,8 @@ const DAY = 24 * HOUR;
 /** Everything the server needs, filled with sample data instead of real agents. */
 export interface Demo {
   readonly dataDir: string;
+  /** Folder holding the sample projects, where folder browsing starts. */
+  readonly projectsDir: string;
   readonly agents: AgentFeed;
   readonly transcripts: { read(agent: Agent): Promise<Transcript> };
   readonly actions: AgentActions;
@@ -58,6 +60,7 @@ export async function createDemo(now: number = Date.now()): Promise<Demo> {
 
   return {
     dataDir,
+    projectsDir: path.join(dataDir, 'projects'),
     agents: {
       ready: () => Promise.resolve(snapshot),
       current: () => snapshot,

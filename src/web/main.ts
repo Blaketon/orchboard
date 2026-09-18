@@ -8,6 +8,7 @@ import { createDocsView } from './docs-view.ts';
 import { HiddenAgents } from './hidden-agents.ts';
 import { confirmDialog, formDialog } from './dialogs.ts';
 import { byId } from './dom.ts';
+import { pickFolder } from './folder-picker.ts';
 import { renderList } from './list.ts';
 import { connectLiveAgents, type ConnectionState } from './live.ts';
 import { createTaskDialog } from './task-dialog.ts';
@@ -242,7 +243,13 @@ byId('add-project', 'button').addEventListener('click', () => {
     title: 'Add project',
     submitLabel: 'Add project',
     fields: [
-      { name: 'path', label: 'Folder', placeholder: 'C:\\Git\\my-project', required: true },
+      {
+        name: 'path',
+        label: 'Folder',
+        placeholder: 'C:\\Git\\my-project',
+        required: true,
+        browse: pickFolder,
+      },
       {
         name: 'label',
         label: 'Name (optional)',

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import type { Agent } from '../shared/api.ts';
 import { projectKey } from '../shared/projects.ts';
@@ -15,6 +16,7 @@ import { CodexRunner } from './codex/codex-runner.ts';
 import { loadConfig, type Config } from './config.ts';
 import { createDemo } from './demo/demo-mode.ts';
 import { ModelService } from './models/model-service.ts';
+import { FolderBrowser } from './projects/folder-browser.ts';
 import { ProjectDocs } from './projects/project-docs.ts';
 import { ProjectsStore } from './projects/projects-store.ts';
 import { QueueStore } from './queue/queue-store.ts';
@@ -102,6 +104,7 @@ const server = createServer({
         (agent) => projectKey(agent.cwd) === key,
       ),
   }),
+  folders: new FolderBrowser({ home: demo?.projectsDir ?? os.homedir() }),
   skills: demo?.skills ?? (() => listSkills(skillRoots(config.claudeDir, config.codexDir))),
   queue,
   attachments,

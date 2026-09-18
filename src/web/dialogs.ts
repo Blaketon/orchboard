@@ -7,6 +7,8 @@ export interface FormField {
   readonly placeholder?: string;
   readonly required?: boolean;
   readonly maxLength?: number;
+  /** Adds a Browse button that asks for a value, given the current one; null keeps it. */
+  readonly browse?: (value: string) => Promise<string | null>;
 }
 
 /**
@@ -49,7 +51,7 @@ export function formDialog(options: {
       ...options.fields.map((field, i) =>
         el('label', { className: 'field' }, [
           el('span', { className: 'field-label', text: field.label }),
-          inputs[i],
+          field.browse ? browseRow(inputs[i], field.label, field.browse) : inputs[i],
         ]),
       ),
       error,
@@ -91,6 +93,29 @@ export function formDialog(options: {
     dialog.showModal();
     inputs[0]?.focus();
   });
+}
+
+/** An input with a Browse button next to it that fills the input in. */
+function browseRow(
+  input: HTMLInputElement | undefined,
+  label: string,
+  browse: (value: string) => Promise<string | null>,
+): HTMLElement {
+  const button = el('button', {
+    className: 'button',
+    text: 'Browse…',
+    attrs: { type: 'button', 'aria-label': `Browse for ${label.toLowerCase()}` },
+    on: {
+      click: () => {
+        void browse(input?.value.trim() ?? '').then((value) => {
+          if (value === null || !input) return;
+          input.value = value;
+          input.focus();
+        });
+      },
+    },
+  });
+  return el('div', { className: 'field-browse' }, [input, button]);
 }
 
 /** Asks for confirmation before something destructive. */

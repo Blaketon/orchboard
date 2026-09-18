@@ -96,6 +96,18 @@ describe('server', () => {
         return Promise.resolve({ name: 'CLAUDE.md', exists: true, content: '', modifiedAt: 2 });
       },
     },
+    folders: {
+      list: (folder) => {
+        browsedFolders.push(folder);
+        return Promise.resolve({
+          path: folder ?? '/home',
+          parent: null,
+          folders: [],
+          truncated: false,
+          roots: ['/home', '/'],
+        });
+      },
+    },
     skills: () =>
       Promise.resolve([
         {
@@ -137,6 +149,7 @@ describe('server', () => {
     },
   });
   const removedProjects: string[] = [];
+  const browsedFolders: (string | null)[] = [];
   const savedDocs: unknown[] = [];
   const uploads: number[] = [];
   let port = 0;
@@ -259,6 +272,13 @@ describe('server', () => {
     });
     assert.equal(res.status, 200);
     assert.deepEqual(removedProjects, ['C:/Git/my app']);
+  });
+
+  it('lists folders for picking a project, from home or a given path', async () => {
+    assert.equal((await request('/api/folders')).status, 200);
+    const res = await request(`/api/folders?path=${encodeURIComponent('C:\\Git\\my app')}`);
+    assert.equal((res.body as { path: string }).path, 'C:\\Git\\my app');
+    assert.deepEqual(browsedFolders, [null, 'C:\\Git\\my app']);
   });
 
   it('reads and saves project docs', async () => {

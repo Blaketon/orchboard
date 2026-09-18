@@ -5,6 +5,7 @@ import type { AgentFeed, AgentSnapshot } from './agents/agent-monitor.ts';
 import { MAX_IMAGE_BYTES, type AttachmentStore } from './attachments/attachment-store.ts';
 import { HttpError, readBody, readJsonBody } from './http-error.ts';
 import type { ModelService } from './models/model-service.ts';
+import type { FolderBrowser } from './projects/folder-browser.ts';
 import type { ProjectDocs } from './projects/project-docs.ts';
 import type { ProjectsStore } from './projects/projects-store.ts';
 import type { QueueStore } from './queue/queue-store.ts';
@@ -19,6 +20,7 @@ export interface ServerOptions {
   readonly actions: AgentActions;
   readonly projects: Pick<ProjectsStore, 'list' | 'save' | 'remove'>;
   readonly projectDocs: Pick<ProjectDocs, 'read' | 'save'>;
+  readonly folders: Pick<FolderBrowser, 'list'>;
   readonly skills: () => Promise<Skill[]>;
   readonly attachments: Pick<AttachmentStore, 'save' | 'read'>;
   readonly queue: Pick<
@@ -128,6 +130,14 @@ export function createServer(options: ServerOptions): http.Server {
       path: '/api/projects/docs',
       handler: async (req, res) => {
         sendJson(res, 200, await options.projectDocs.save(await readJsonBody(req)));
+      },
+    },
+    {
+      method: 'GET',
+      path: '/api/folders',
+      handler: async (req, res) => {
+        const folder = new URL(req.url ?? '/', 'http://localhost').searchParams.get('path');
+        sendJson(res, 200, await options.folders.list(folder));
       },
     },
     {

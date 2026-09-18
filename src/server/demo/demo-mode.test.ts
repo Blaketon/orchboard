@@ -5,6 +5,7 @@ import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { AttachmentStore } from '../attachments/attachment-store.ts';
+import { FolderBrowser } from '../projects/folder-browser.ts';
 import { ProjectDocs } from '../projects/project-docs.ts';
 import { ProjectsStore } from '../projects/projects-store.ts';
 import { QueueStore } from '../queue/queue-store.ts';
@@ -33,6 +34,7 @@ describe('demo mode', () => {
         isKnownProject: async (key) =>
           (await projects.list()).some((project) => project.path === key),
       }),
+      folders: new FolderBrowser({ home: demo.projectsDir }),
       skills: demo.skills,
       attachments: new AttachmentStore(demo.dataDir),
       queue: new QueueStore(demo.dataDir, demo.actions),
@@ -97,6 +99,12 @@ describe('demo mode', () => {
     const projects = (await json('/api/projects')) as { exists: boolean }[];
     assert.equal(projects.length, 3);
     assert.ok(projects.every((project) => project.exists));
+    // Browsing for a project folder starts among the sample projects.
+    const folders = (await json('/api/folders')) as { folders: { name: string }[] };
+    assert.deepEqual(
+      folders.folders.map((folder) => folder.name),
+      ['api-gateway', 'mobile-app', 'storefront'],
+    );
 
     const queue = (await json('/api/queue')) as { columns: unknown[]; tasks: unknown[] };
     assert.equal(queue.columns.length, 3);

@@ -73,6 +73,29 @@ export interface SavedProjectView extends SavedProject {
   readonly exists: boolean;
 }
 
+/** A folder inside the one being browsed. */
+export interface FolderEntry {
+  readonly name: string;
+  /** Absolute path. */
+  readonly path: string;
+  /** True when the folder is a git repository, as projects usually are. */
+  readonly repository: boolean;
+}
+
+/** `GET /api/folders?path=`: the folders inside a folder, for picking a project. */
+export interface FolderListing {
+  /** Absolute path of the folder listed; the home folder when none was asked for. */
+  readonly path: string;
+  /** Its parent folder, or null at the top of a drive. */
+  readonly parent: string | null;
+  /** Sorted by name. Hidden folders are left out. */
+  readonly folders: readonly FolderEntry[];
+  /** True when the folder had more subfolders than are listed. */
+  readonly truncated: boolean;
+  /** Where browsing can start over: the home folder and the drives (or `/`). */
+  readonly roots: readonly string[];
+}
+
 /** A user-defined column of planned tasks, shown on the board next to a project's agents. */
 export interface QueueColumn {
   readonly id: string;
