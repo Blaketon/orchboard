@@ -1,7 +1,8 @@
 import type { AgentSnapshot, Agent, QueueState, SavedProjectView } from '../shared/api.ts';
-import { filterAgents, listProjects, type Project } from './agents.ts';
+import { BOARD_COLUMNS, filterAgents, listProjects, type Project } from './agents.ts';
 import { errorMessage, requestJson } from './api.ts';
 import { renderBoard, renderProjects } from './board.ts';
+import { ColumnOrder, queueColumnKey } from './column-order.ts';
 import { createDetailPanel } from './detail.ts';
 import { createDocsView } from './docs-view.ts';
 import { HiddenAgents } from './hidden-agents.ts';
@@ -39,6 +40,7 @@ const hiddenLabel = byId('hidden-label', 'span');
 const hiddenToggle = byId('hidden-toggle', 'button');
 const hiddenReset = byId('hidden-reset', 'button');
 const hidden = new HiddenAgents();
+const columnOrder = new ColumnOrder();
 let showHidden = false;
 const detail = createDetailPanel({
   onHide: (agent) => {
@@ -105,6 +107,13 @@ const currentProjects = (): Project[] => listProjects(snapshot?.agents ?? [], sa
 
 function setQueue(next: QueueState): void {
   queue = next;
+  // The queue lists every project's columns, so any other saved key is a removed column.
+  columnOrder.prune(
+    new Set([
+      ...BOARD_COLUMNS.map((column) => column.state),
+      ...next.columns.map((column) => queueColumnKey(column.id)),
+    ]),
+  );
   render();
 }
 
@@ -374,6 +383,11 @@ function render(): void {
             },
           }
         : {}),
+      columnOrder: columnOrder.get(),
+      onReorderColumns: (keys) => {
+        columnOrder.update(keys);
+        render();
+      },
       onClearCompleted: (agents) => {
         hidden.hide(agents.map((agent) => agent.id));
         showToast(`Hid ${agents.length} completed agent${agents.length === 1 ? '' : 's'}`);

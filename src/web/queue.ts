@@ -1,5 +1,6 @@
 import type { QueueColumn, QueuedTask, QueueState } from '../shared/api.ts';
 import { AGENT_LABELS } from './agents.ts';
+import { queueColumnKey } from './column-order.ts';
 import { el } from './dom.ts';
 import { modesFor } from './task-dialog.ts';
 
@@ -53,33 +54,42 @@ function renderColumn(
       ? tasks.map((task) => renderTask(task, handlers))
       : [el('p', { className: 'column-empty', text: 'Drop or add tasks here' })],
   );
-  enableDrop(cards, column.id, handlers);
 
-  return el('section', { className: 'column queue-column', attrs: { 'aria-label': column.name } }, [
-    el('header', { className: 'column-header' }, [
-      el('h2', { className: 'column-title', text: column.name }),
-      el('span', { className: 'column-count', text: String(tasks.length) }),
-      el('span', { className: 'column-tools' }, [
-        iconButton('✎', `Rename ${column.name}`, () => {
-          handlers.onRenameColumn(column);
-        }),
-        iconButton('×', `Remove ${column.name}`, () => {
-          handlers.onRemoveColumn(column, tasks.length);
-        }),
+  const section = el(
+    'section',
+    {
+      className: 'column queue-column',
+      attrs: { 'data-column-key': queueColumnKey(column.id), 'aria-label': column.name },
+    },
+    [
+      el('header', { className: 'column-header' }, [
+        el('h2', { className: 'column-title', text: column.name }),
+        el('span', { className: 'column-count', text: String(tasks.length) }),
+        el('span', { className: 'column-tools' }, [
+          iconButton('✎', `Rename ${column.name}`, () => {
+            handlers.onRenameColumn(column);
+          }),
+          iconButton('×', `Remove ${column.name}`, () => {
+            handlers.onRemoveColumn(column, tasks.length);
+          }),
+        ]),
       ]),
-    ]),
-    cards,
-    el('button', {
-      className: 'add-task',
-      text: '+ Add task',
-      attrs: { type: 'button' },
-      on: {
-        click: () => {
-          handlers.onAddTask(column);
+      cards,
+      el('button', {
+        className: 'add-task',
+        text: '+ Add task',
+        attrs: { type: 'button' },
+        on: {
+          click: () => {
+            handlers.onAddTask(column);
+          },
         },
-      },
-    }),
-  ]);
+      }),
+    ],
+  );
+  // The whole column takes the drop, so a task can be let go anywhere over it.
+  enableDrop(section, cards, column.id, handlers);
+  return section;
 }
 
 /** The agent a queued task will run on and its model; an unset model is the agent's default. */
@@ -156,44 +166,51 @@ function renderTask(task: QueuedTask, handlers: QueueHandlers): HTMLElement {
   return card;
 }
 
-function enableDrop(zone: HTMLElement, columnId: string, handlers: QueueHandlers): void {
+/** Takes task drops anywhere over `column`, marking the column and the spot the task will land. */
+function enableDrop(
+  column: HTMLElement,
+  cards: HTMLElement,
+  columnId: string,
+  handlers: QueueHandlers,
+): void {
   const clearMarkers = () => {
-    zone.classList.remove('drop-target');
-    for (const marked of zone.querySelectorAll('.drop-before'))
-      marked.classList.remove('drop-before');
+    column.classList.remove('drop-target');
+    for (const marked of cards.querySelectorAll('.drop-before, .drop-after')) {
+      marked.classList.remove('drop-before', 'drop-after');
+    }
   };
 
-  zone.addEventListener('dragover', (event) => {
+  column.addEventListener('dragover', (event) => {
     if (!event.dataTransfer?.types.includes(DRAG_TYPE)) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
     clearMarkers();
-    zone.classList.add('drop-target');
-    const { before } = dropPosition(zone, event.clientY);
-    before?.classList.add('drop-before');
+    column.classList.add('drop-target');
+    const { index, others } = dropPosition(cards, event.clientY);
+    const before = others[index];
+    if (before) before.classList.add('drop-before');
+    else others.at(-1)?.classList.add('drop-after');
   });
-  zone.addEventListener('dragleave', (event) => {
-    if (!zone.contains(event.relatedTarget as Node | null)) clearMarkers();
+  column.addEventListener('dragleave', (event) => {
+    if (!column.contains(event.relatedTarget as Node | null)) clearMarkers();
   });
-  zone.addEventListener('drop', (event) => {
+  column.addEventListener('drop', (event) => {
     const taskId = event.dataTransfer?.getData(DRAG_TYPE);
     clearMarkers();
     if (!taskId) return;
     event.preventDefault();
-    handlers.onMoveTask(taskId, columnId, dropPosition(zone, event.clientY).index);
+    handlers.onMoveTask(taskId, columnId, dropPosition(cards, event.clientY).index);
   });
 }
 
-/** Where a drop at `y` lands: the index among cards other than the one being dragged. */
-function dropPosition(zone: HTMLElement, y: number): { index: number; before: HTMLElement | null } {
-  const cards = [...zone.querySelectorAll<HTMLElement>('.queue-card:not(.dragging)')];
-  const index = cards.findIndex((card) => {
+/** Where a drop at `y` lands: the index among the cards other than the one being dragged. */
+function dropPosition(cards: HTMLElement, y: number): { index: number; others: HTMLElement[] } {
+  const others = [...cards.querySelectorAll<HTMLElement>('.queue-card:not(.dragging)')];
+  const index = others.findIndex((card) => {
     const rect = card.getBoundingClientRect();
     return y < rect.top + rect.height / 2;
   });
-  return index === -1
-    ? { index: cards.length, before: null }
-    : { index, before: cards[index] ?? null };
+  return { index: index === -1 ? others.length : index, others };
 }
 
 function iconButton(text: string, label: string, run: () => void): HTMLButtonElement {
