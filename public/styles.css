@@ -460,7 +460,6 @@ textarea {
 
 .queue-card {
   border-left-color: var(--focus);
-  cursor: grab;
 }
 
 .queue-card.dragging {

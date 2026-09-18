@@ -95,7 +95,20 @@ function renderTask(task: QueuedTask, handlers: QueueHandlers): HTMLElement {
     'div',
     {
       className: 'card queue-card',
-      attrs: { draggable: 'true', 'data-task-id': task.id, title: task.prompt },
+      attrs: { draggable: 'true', tabindex: '0', 'data-task-id': task.id, title: task.prompt },
+      on: {
+        // The whole card opens the task for editing; its own buttons keep their actions.
+        click: (event) => {
+          if (event.target instanceof Element && event.target.closest('button')) return;
+          handlers.onEditTask(task);
+        },
+        keydown: (event) => {
+          if (event.target !== event.currentTarget) return;
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          handlers.onEditTask(task);
+        },
+      },
     },
     [
       el('span', { className: 'card-title', text: task.name }),
@@ -123,16 +136,6 @@ function renderTask(task: QueuedTask, handlers: QueueHandlers): HTMLElement {
           on: {
             click: () => {
               handlers.onStartTask(task);
-            },
-          },
-        }),
-        el('button', {
-          className: 'button button-small',
-          text: 'Edit',
-          attrs: { type: 'button' },
-          on: {
-            click: () => {
-              handlers.onEditTask(task);
             },
           },
         }),

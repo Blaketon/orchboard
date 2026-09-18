@@ -31,6 +31,7 @@ export function renderBoard(
   // Re-rendering replaces the cards and buttons; keep keyboard focus on the same one.
   const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   const focusedId = active?.dataset.agentId;
+  const focusedTaskId = active?.dataset.taskId;
   const focusKey = active?.dataset.focusKey;
 
   const groups = groupByState(agents);
@@ -45,6 +46,8 @@ export function renderBoard(
 
   if (focusedId) {
     container.querySelector<HTMLElement>(`[data-agent-id="${CSS.escape(focusedId)}"]`)?.focus();
+  } else if (focusedTaskId) {
+    container.querySelector<HTMLElement>(`[data-task-id="${CSS.escape(focusedTaskId)}"]`)?.focus();
   } else if (focusKey) {
     container.querySelector<HTMLElement>(`[data-focus-key="${CSS.escape(focusKey)}"]`)?.focus();
   }
