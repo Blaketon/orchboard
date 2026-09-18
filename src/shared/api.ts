@@ -121,6 +121,20 @@ export interface UsageReport {
   readonly codex: UsageSource;
 }
 
+/** A model the task form offers. */
+export interface ModelOption {
+  /** Name passed to the agent, e.g. `opus` or `gpt-5.5`. */
+  readonly value: string;
+  readonly label: string;
+}
+
+/** `GET /api/models/:provider`. */
+export interface AgentModels {
+  /** The model the agent runs when none is chosen, from its own settings; null when unknown. */
+  readonly default: string | null;
+  readonly options: readonly ModelOption[];
+}
+
 /** `GET /api/queue`. Columns and tasks are listed in display order. */
 export interface QueueState {
   readonly columns: readonly QueueColumn[];

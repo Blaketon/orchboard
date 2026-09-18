@@ -128,6 +128,13 @@ describe('server', () => {
           codex: { windows: [], error: null },
         }),
     },
+    models: {
+      models: (provider) =>
+        Promise.resolve({
+          default: provider === 'claude' ? 'opus' : null,
+          options: [{ value: `${provider}-model`, label: 'Model' }],
+        }),
+    },
   });
   const removedProjects: string[] = [];
   const savedDocs: unknown[] = [];
@@ -312,6 +319,17 @@ describe('server', () => {
     const res = await request('/api/skills');
     assert.equal(res.status, 200);
     assert.equal((res.body as { name: string }[])[0]?.name, 'review');
+  });
+
+  it("lists an agent's models with its default", async () => {
+    const claude = await request('/api/models/claude');
+    assert.equal(claude.status, 200);
+    assert.deepEqual(claude.body, {
+      default: 'opus',
+      options: [{ value: 'claude-model', label: 'Model' }],
+    });
+    assert.equal((await request('/api/models/codex')).status, 200);
+    assert.equal((await request('/api/models/gemini')).status, 404);
   });
 
   it('rejects action requests that are not JSON', async () => {

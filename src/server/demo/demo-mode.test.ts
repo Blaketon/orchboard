@@ -37,6 +37,7 @@ describe('demo mode', () => {
       attachments: new AttachmentStore(demo.dataDir),
       queue: new QueueStore(demo.dataDir, demo.actions),
       usage: demo.usage,
+      models: demo.models,
       openTerminal: demo.openTerminal,
       staticRoots: {
         publicDir: path.resolve(import.meta.dirname, '..', '..', '..', 'public'),
@@ -88,7 +89,7 @@ describe('demo mode', () => {
     assert.match(page.body, /\/app\/web\/main\.js/);
   });
 
-  it('shows sample agents, projects, queue, usage, and skills', async () => {
+  it('shows sample agents, projects, queue, usage, skills, and models', async () => {
     const snapshot = (await json('/api/agents')) as { agents: { provider: string }[] };
     assert.ok(snapshot.agents.length >= 6);
     assert.ok(snapshot.agents.some((agent) => agent.provider === 'codex'));
@@ -105,6 +106,10 @@ describe('demo mode', () => {
     assert.equal(usage.claude.windows.length, 2);
 
     assert.ok(((await json('/api/skills')) as unknown[]).length > 0);
+
+    const models = (await json('/api/models/codex')) as { default: string; options: unknown[] };
+    assert.equal(models.default, 'gpt-5.5-codex');
+    assert.ok(models.options.length > 0);
   });
 
   it('shows a transcript with usage for a sample task', async () => {

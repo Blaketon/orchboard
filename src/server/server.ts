@@ -4,6 +4,7 @@ import type { AgentActions } from './agents/agent-actions.ts';
 import type { AgentFeed, AgentSnapshot } from './agents/agent-monitor.ts';
 import { MAX_IMAGE_BYTES, type AttachmentStore } from './attachments/attachment-store.ts';
 import { HttpError, readBody, readJsonBody } from './http-error.ts';
+import type { ModelService } from './models/model-service.ts';
 import type { ProjectDocs } from './projects/project-docs.ts';
 import type { ProjectsStore } from './projects/projects-store.ts';
 import type { QueueStore } from './queue/queue-store.ts';
@@ -33,6 +34,7 @@ export interface ServerOptions {
     | 'start'
   >;
   readonly usage: Pick<UsageService, 'report'>;
+  readonly models: Pick<ModelService, 'models'>;
   readonly openTerminal: (agent: Agent) => Promise<void>;
   /** Where the web app's files live. Without it, only the API is served. */
   readonly staticRoots?: StaticRoots;
@@ -140,6 +142,17 @@ export function createServer(options: ServerOptions): http.Server {
       path: '/api/usage',
       handler: async (_req, res) => {
         sendJson(res, 200, await options.usage.report());
+      },
+    },
+    {
+      method: 'GET',
+      path: '/api/models/:provider',
+      handler: async (_req, res, params) => {
+        const { provider } = params;
+        if (provider !== 'claude' && provider !== 'codex') {
+          throw new HttpError(404, 'Unknown agent.');
+        }
+        sendJson(res, 200, await options.models.models(provider));
       },
     },
     {

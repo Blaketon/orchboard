@@ -14,6 +14,7 @@ import { parseCliArgs, USAGE, type CliOptions } from './cli-args.ts';
 import { CodexRunner } from './codex/codex-runner.ts';
 import { loadConfig, type Config } from './config.ts';
 import { createDemo } from './demo/demo-mode.ts';
+import { ModelService } from './models/model-service.ts';
 import { ProjectDocs } from './projects/project-docs.ts';
 import { ProjectsStore } from './projects/projects-store.ts';
 import { QueueStore } from './queue/queue-store.ts';
@@ -106,6 +107,7 @@ const server = createServer({
   attachments,
   usage:
     demo?.usage ?? new UsageService({ claudeDir: config.claudeDir, codexDir: config.codexDir }),
+  models: demo?.models ?? new ModelService({ claudeDir: config.claudeDir }),
   openTerminal: demo?.openTerminal ?? ((agent) => openAgentTerminal(agent)),
   staticRoots: {
     publicDir: path.join(packageRoot, 'public'),

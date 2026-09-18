@@ -3,6 +3,8 @@ import os from 'node:os';
 import path from 'node:path';
 import type {
   Agent,
+  AgentModels,
+  AgentProvider,
   AgentSnapshot,
   Skill,
   Transcript,
@@ -12,6 +14,7 @@ import type {
 import type { AgentActions } from '../agents/agent-actions.ts';
 import type { AgentFeed } from '../agents/agent-monitor.ts';
 import { HttpError } from '../http-error.ts';
+import { CLAUDE_MODELS } from '../models/model-service.ts';
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -25,6 +28,7 @@ export interface Demo {
   readonly actions: AgentActions;
   readonly skills: () => Promise<Skill[]>;
   readonly usage: { report(): Promise<UsageReport> };
+  readonly models: { models(provider: AgentProvider): Promise<AgentModels> };
   readonly openTerminal: (agent: Agent) => Promise<void>;
 }
 
@@ -72,6 +76,7 @@ export async function createDemo(now: number = Date.now()): Promise<Demo> {
     },
     skills: () => Promise.resolve(demoSkills()),
     usage: { report: () => Promise.resolve(demoUsage(now)) },
+    models: { models: (provider) => Promise.resolve(DEMO_MODELS[provider]) },
     openTerminal: refuse,
   };
 }
@@ -392,6 +397,17 @@ export function demoUsage(now: number = Date.now()): UsageReport {
 }
 
 const iso = (time: number) => new Date(time).toISOString();
+
+const DEMO_MODELS: Readonly<Record<AgentProvider, AgentModels>> = {
+  claude: { default: 'opus', options: CLAUDE_MODELS },
+  codex: {
+    default: 'gpt-5.5-codex',
+    options: [
+      { value: 'gpt-5.5-codex', label: 'GPT-5.5-Codex' },
+      { value: 'gpt-5.5', label: 'GPT-5.5' },
+    ],
+  },
+};
 
 function demoSkills(): Skill[] {
   return [

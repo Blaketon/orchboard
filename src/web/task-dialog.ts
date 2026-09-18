@@ -1,5 +1,7 @@
 import type {
+  AgentModels,
   AgentProvider,
+  ModelOption,
   QueueColumn,
   QueuedTask,
   QueueState,
@@ -35,13 +37,26 @@ const MODEL_KEYS: Readonly<Record<AgentProvider, string>> = {
 };
 
 /**
- * Model names to suggest. Both CLIs accept a model name or alias and fall back to their own
- * configured default, so the field stays free text; these are only shortcuts.
+ * The model menu: the agent's default first, named when its settings say which model that is,
+ * then the models it offers. A chosen model that isn't offered, e.g. one typed into an older
+ * version of the form, stays selectable.
  */
-export const MODEL_SUGGESTIONS: Readonly<Record<AgentProvider, readonly string[]>> = {
-  claude: ['opus', 'sonnet', 'haiku', 'fable'],
-  codex: [],
-};
+export function modelChoices(models: AgentModels | undefined, chosen: string): ModelOption[] {
+  const options = models?.options ?? [];
+  const fallback = models?.default ?? null;
+  const fallbackLabel =
+    fallback === null
+      ? null
+      : (options.find((option) => option.value === fallback)?.label ?? fallback);
+  const choices = [
+    { value: '', label: fallbackLabel === null ? 'Default' : `Default (${fallbackLabel})` },
+    ...options,
+  ];
+  if (chosen && !options.some((option) => option.value === chosen)) {
+    choices.push({ value: chosen, label: chosen });
+  }
+  return choices;
+}
 
 /** The permission choices for an agent. */
 export function modesFor(provider: AgentProvider): readonly { value: Mode; label: string }[] {
@@ -124,18 +139,9 @@ export function createTaskDialog(options: {
     ),
   );
   const mode = el('select', { className: 'field-input', attrs: { name: 'permissionMode' } });
-  const modelOptions = el('datalist', { attrs: { id: 'model-suggestions' } });
-  const model = el('input', {
-    className: 'field-input',
-    attrs: {
-      name: 'model',
-      list: 'model-suggestions',
-      placeholder: 'Default',
-      autocomplete: 'off',
-      spellcheck: 'false',
-      maxlength: '80',
-    },
-  });
+  const model = el('select', { className: 'field-input', attrs: { name: 'model' } });
+  /** Each agent's models as last loaded; the menu shows just the default until then. */
+  const models: Partial<Record<AgentProvider, AgentModels>> = {};
   const images = createAttachmentPicker();
   images.listenOn(prompt);
   const error = el('p', { className: 'form-error', attrs: { role: 'alert' } });
@@ -155,11 +161,10 @@ export function createTaskDialog(options: {
       images.element,
     ]),
     el('div', { className: 'field-row' }, [field('Agent', agent), field('Permissions', mode)]),
-    field('Model', model, "Leave empty for the agent's own default"),
+    field('Model', model),
     error,
     el('div', { className: 'form-actions' }, [cancel, run, submit]),
     suggestions,
-    modelOptions,
   ]);
   const dialog = el(
     'dialog',
@@ -180,10 +185,31 @@ export function createTaskDialog(options: {
       ),
     );
     mode.value = modeFor(provider, selected);
-    modelOptions.replaceChildren(
-      ...MODEL_SUGGESTIONS[provider].map((value) => el('option', { attrs: { value } })),
+    showModels(provider, chosenModel);
+    loadModels(provider);
+  }
+
+  function showModels(provider: AgentProvider, chosen: string): void {
+    model.replaceChildren(
+      ...modelChoices(models[provider], chosen).map((option) =>
+        el('option', { attrs: { value: option.value }, text: option.label }),
+      ),
     );
-    model.value = chosenModel;
+    model.value = chosen;
+  }
+
+  /** Loads the agent's models every time, since its settings can change between tasks. */
+  function loadModels(provider: AgentProvider): void {
+    requestJson<AgentModels>('GET', `/api/models/${provider}`).then(
+      (loaded) => {
+        models[provider] = loaded;
+        // The agent may have been switched meanwhile; a choice made meanwhile is kept.
+        if (currentProvider() === provider) showModels(provider, model.value);
+      },
+      () => {
+        // Without the list the menu still offers the default and the current choice.
+      },
+    );
   }
 
   agent.addEventListener('change', () => {
@@ -220,7 +246,7 @@ export function createTaskDialog(options: {
       prompt: prompt.value,
       name: name.value.trim(),
       permissionMode,
-      model: model.value.trim(),
+      model: model.value,
       images: images.ids(),
     };
     const labels = runNow ? { submit: 'Run', busy: 'Starting…' } : LABELS[target.kind];

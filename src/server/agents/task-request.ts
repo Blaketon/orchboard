@@ -76,8 +76,13 @@ export function parsePermissionMode(
 export function parseModel(value: unknown): string | undefined {
   const model = typeof value === 'string' ? value.trim() : '';
   if (!model) return undefined;
-  if (!MODEL_NAME.test(model)) throw new HttpError(400, `Unknown model name: ${model}`);
+  if (!isModelName(model)) throw new HttpError(400, `Unknown model name: ${model}`);
   return model;
+}
+
+/** Whether `parseModel` accepts the name. */
+export function isModelName(value: string): boolean {
+  return MODEL_NAME.test(value);
 }
 
 export function parsePrompt(value: unknown): string {

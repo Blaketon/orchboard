@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { LABELS, modeFor, modesFor } from './task-dialog.ts';
+import { LABELS, modelChoices, modeFor, modesFor } from './task-dialog.ts';
 
 describe('task form labels', () => {
   it('saves a new queued task or runs it right away', () => {
@@ -32,5 +32,38 @@ describe('permission modes per agent', () => {
     assert.equal(modeFor('claude', 'full-access'), 'manual');
     assert.equal(modeFor('codex', 'auto'), 'auto');
     assert.equal(modeFor('claude', null), 'manual');
+  });
+});
+
+describe('model menu', () => {
+  const models = {
+    default: 'opus',
+    options: [
+      { value: 'opus', label: 'Opus' },
+      { value: 'sonnet', label: 'Sonnet' },
+    ],
+  };
+
+  it("names the agent's default and lists its models after it", () => {
+    assert.deepEqual(modelChoices(models, 'sonnet'), [
+      { value: '', label: 'Default (Opus)' },
+      { value: 'opus', label: 'Opus' },
+      { value: 'sonnet', label: 'Sonnet' },
+    ]);
+  });
+
+  it("shows a default that isn't offered by its name, and an unknown one as just Default", () => {
+    const named = modelChoices({ ...models, default: 'claude-opus-5' }, '');
+    assert.equal(named[0]?.label, 'Default (claude-opus-5)');
+    assert.equal(modelChoices({ ...models, default: null }, '')[0]?.label, 'Default');
+    assert.deepEqual(modelChoices(undefined, ''), [{ value: '', label: 'Default' }]);
+  });
+
+  it('keeps a chosen model that the agent does not offer', () => {
+    assert.deepEqual(modelChoices(models, 'claude-opus-5').at(-1), {
+      value: 'claude-opus-5',
+      label: 'claude-opus-5',
+    });
+    assert.equal(modelChoices(undefined, 'opus').length, 2);
   });
 });
