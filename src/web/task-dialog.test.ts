@@ -1,6 +1,22 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { modeFor, modesFor } from './task-dialog.ts';
+import { LABELS, modeFor, modesFor } from './task-dialog.ts';
+
+describe('task form labels', () => {
+  it('saves a new queued task or runs it right away', () => {
+    assert.deepEqual(LABELS['queue-add'], {
+      title: 'New task',
+      submit: 'Save',
+      busy: 'Saving…',
+      run: true,
+    });
+  });
+
+  it('offers to run only for a new queued task', () => {
+    assert.equal(LABELS.start.run, false);
+    assert.equal(LABELS['queue-edit'].run, false);
+  });
+});
 
 describe('permission modes per agent', () => {
   it('offers each agent its own modes', () => {

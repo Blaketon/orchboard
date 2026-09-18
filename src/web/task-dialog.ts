@@ -61,6 +61,21 @@ type Target =
   | { readonly kind: 'queue-add'; readonly column: QueueColumn }
   | { readonly kind: 'queue-edit'; readonly task: QueuedTask };
 
+interface Labels {
+  readonly title: string;
+  readonly submit: string;
+  readonly busy: string;
+  /** Whether the form also offers to run the task right away instead of saving it. */
+  readonly run: boolean;
+}
+
+/** The title and buttons for each use of the form. */
+export const LABELS: Readonly<Record<Target['kind'], Labels>> = {
+  start: { title: 'New task', submit: 'Start task', busy: 'Starting…', run: false },
+  'queue-add': { title: 'New task', submit: 'Save', busy: 'Saving…', run: true },
+  'queue-edit': { title: 'Edit queued task', submit: 'Save', busy: 'Saving…', run: false },
+};
+
 export interface TaskDialog {
   /** Opens the form to start a task now, prefilled with a project folder when one is selected. */
   open(defaultCwd: string | null): void;
@@ -126,6 +141,8 @@ export function createTaskDialog(options: {
   const error = el('p', { className: 'form-error', attrs: { role: 'alert' } });
   error.hidden = true;
   const submit = el('button', { className: 'button button-primary', attrs: { type: 'submit' } });
+  // A plain button, so Enter and Ctrl+Enter keep saving rather than starting an agent.
+  const run = el('button', { className: 'button', text: 'Run', attrs: { type: 'button' } });
   const cancel = el('button', { className: 'button', text: 'Cancel', attrs: { type: 'button' } });
 
   const form = el('form', { className: 'form' }, [
@@ -140,7 +157,7 @@ export function createTaskDialog(options: {
     el('div', { className: 'field-row' }, [field('Agent', agent), field('Permissions', mode)]),
     field('Model', model, "Leave empty for the agent's own default"),
     error,
-    el('div', { className: 'form-actions' }, [cancel, submit]),
+    el('div', { className: 'form-actions' }, [cancel, run, submit]),
     suggestions,
     modelOptions,
   ]);
@@ -152,12 +169,6 @@ export function createTaskDialog(options: {
   document.body.append(dialog);
 
   let target: Target = { kind: 'start' };
-  const LABELS: Readonly<Record<Target['kind'], { title: string; submit: string; busy: string }>> =
-    {
-      start: { title: 'New task', submit: 'Start task', busy: 'Starting…' },
-      'queue-add': { title: 'Add to queue', submit: 'Add to queue', busy: 'Adding…' },
-      'queue-edit': { title: 'Edit queued task', submit: 'Save', busy: 'Saving…' },
-    };
 
   const currentProvider = (): AgentProvider => (agent.value === 'codex' ? 'codex' : 'claude');
 
@@ -188,10 +199,14 @@ export function createTaskDialog(options: {
   });
   form.addEventListener('submit', (event) => {
     event.preventDefault();
-    void save();
+    void save(false);
+  });
+  run.addEventListener('click', () => {
+    if (form.reportValidity()) void save(true);
   });
 
-  async function save(): Promise<void> {
+  /** Sends the form, or with `runNow` starts the task instead of saving it to the queue. */
+  async function save(runNow: boolean): Promise<void> {
     if (images.isUploading()) {
       error.textContent = 'Wait for the images to finish uploading.';
       error.hidden = false;
@@ -208,12 +223,14 @@ export function createTaskDialog(options: {
       model: model.value.trim(),
       images: images.ids(),
     };
-    const labels = LABELS[target.kind];
+    const labels = runNow ? { submit: 'Run', busy: 'Starting…' } : LABELS[target.kind];
+    const button = runNow ? run : submit;
     error.hidden = true;
     submit.disabled = true;
-    submit.textContent = labels.busy;
+    run.disabled = true;
+    button.textContent = labels.busy;
     try {
-      if (target.kind === 'start') {
+      if (target.kind === 'start' || runNow) {
         await requestJson<StartTaskResponse>(
           'POST',
           '/api/tasks',
@@ -245,7 +262,8 @@ export function createTaskDialog(options: {
       error.hidden = false;
     } finally {
       submit.disabled = false;
-      submit.textContent = labels.submit;
+      run.disabled = false;
+      button.textContent = labels.submit;
     }
   }
 
@@ -265,6 +283,7 @@ export function createTaskDialog(options: {
     const labels = LABELS[next.kind];
     title.textContent = labels.title;
     submit.textContent = labels.submit;
+    run.hidden = !labels.run;
     suggestions.replaceChildren(
       ...options.knownProjects().map((path) => el('option', { attrs: { value: path } })),
     );
