@@ -1159,6 +1159,14 @@ textarea {
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
   backdrop-filter: blur(6px);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.usage-widget[data-dragging] {
+  cursor: grabbing;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 30%);
 }
 
 @media (width <= 900px) {

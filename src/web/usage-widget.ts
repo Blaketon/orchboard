@@ -1,11 +1,13 @@
 import type { UsageReport, UsageSource, UsageWindow } from '../shared/api.ts';
 import { requestJson } from './api.ts';
 import { el } from './dom.ts';
+import { makeDraggable } from './draggable.ts';
 import { formatAge } from './format.ts';
 import type { SettingsStore } from './settings-store.ts';
 import { showToast } from './toast.ts';
 
 const REFRESH_MS = 60_000;
+const POSITION_KEY = 'orchboard-usage-position';
 export const NEAR_LIMIT_PERCENT = 90;
 
 export interface UsageAlert {
@@ -39,10 +41,12 @@ export function usageAlerts(
   return alerts;
 }
 
-/** Plan-limit bars in the sidebar, refreshed every minute. */
+/** Plan-limit bars in an overlay the user can drag around, refreshed every minute. */
 export function createUsageWidget(container: HTMLElement, settings: SettingsStore): void {
   const previous = new Map<string, number>();
   let report: UsageReport | undefined;
+  container.title = 'Drag to move, double-click to reset';
+  const place = makeDraggable(container, POSITION_KEY);
 
   const render = () => {
     const current = settings.get();
@@ -53,6 +57,7 @@ export function createUsageWidget(container: HTMLElement, settings: SettingsStor
         (node): node is HTMLElement => node !== null,
       ),
     );
+    place();
   };
 
   const load = async () => {
