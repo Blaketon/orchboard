@@ -185,7 +185,11 @@ export class CodexRunner {
 
   async remove(agent: Agent): Promise<void> {
     const found = this.#require(agent.id);
-    if (this.#sessions.has(found.id)) throw new HttpError(409, 'Stop the task before deleting it.');
+    const session = this.#sessions.get(found.id);
+    if (session) {
+      await this.stop(agent);
+      await session.client.whenExited;
+    }
     await this.#save(this.#tasks.filter((item) => item.id !== found.id));
   }
 

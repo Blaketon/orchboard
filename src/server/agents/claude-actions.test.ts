@@ -240,14 +240,61 @@ describe('remove', () => {
     assert.deepEqual(calls, [{ args: ['rm', '1a2b3c4d'], options: { fixedArgs: true } }]);
   });
 
-  it('refuses while the agent is running', async () => {
-    await rejectsWithStatus(
-      createClaudeActions({ run: recorder().run }).remove({
-        ...finished,
-        state: 'working',
-        pid: 7,
-      }),
-      409,
+  it('stops a running agent, then deletes it', async () => {
+    const { calls, run } = recorder();
+    let alive = true;
+    const actions = createClaudeActions({
+      run,
+      isPidAlive: () => alive,
+      sleep: () => {
+        alive = false;
+        return Promise.resolve();
+      },
+    });
+
+    await actions.remove({ ...finished, state: 'working', pid: 7 });
+    assert.deepEqual(
+      calls.map((call) => call.args),
+      [
+        ['stop', '1a2b3c4d'],
+        ['rm', '1a2b3c4d'],
+      ],
+    );
+  });
+
+  it('also stops a finished agent that kept its process', async () => {
+    const { calls, run } = recorder();
+    const actions = createClaudeActions({ run, isPidAlive: () => false });
+    await actions.remove({ ...finished, pid: 7 });
+    assert.deepEqual(
+      calls.map((call) => call.args),
+      [
+        ['stop', '1a2b3c4d'],
+        ['rm', '1a2b3c4d'],
+      ],
+    );
+  });
+
+  it('deletes an agent whose process is already gone without stopping it', async () => {
+    const { calls, run } = recorder();
+    await createClaudeActions({ run }).remove({ ...finished, state: 'working' });
+    assert.deepEqual(
+      calls.map((call) => call.args),
+      [['rm', '1a2b3c4d']],
+    );
+  });
+
+  it('keeps the agent when it will not stop', async () => {
+    const { calls, run } = recorder();
+    const actions = createClaudeActions({
+      run,
+      isPidAlive: () => true,
+      sleep: () => Promise.resolve(),
+    });
+    await rejectsWithStatus(actions.remove({ ...finished, pid: 7 }), 409, /delete/);
+    assert.deepEqual(
+      calls.map((call) => call.args),
+      [['stop', '1a2b3c4d']],
     );
   });
 });

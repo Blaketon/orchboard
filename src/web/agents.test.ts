@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Agent } from '../shared/api.ts';
-import { filterAgents, groupByState, listProjects, projectKey, projectLabel } from './agents.ts';
+import {
+  deleteMessage,
+  filterAgents,
+  groupByState,
+  listProjects,
+  projectKey,
+  projectLabel,
+} from './agents.ts';
 
 function agent(overrides: Partial<Agent>): Agent {
   return {
@@ -116,5 +123,20 @@ describe('groupByState', () => {
       ['b'],
     );
     assert.deepEqual(groups.working, []);
+  });
+});
+
+describe('deleteMessage', () => {
+  it('says what is deleted for each agent', () => {
+    assert.match(deleteMessage(agent({ state: 'done' })), /^"Task" and its conversation/);
+    assert.match(
+      deleteMessage(agent({ provider: 'codex', state: 'done' })),
+      /Codex keeps the conversation/,
+    );
+  });
+
+  it('warns that a working agent is stopped first', () => {
+    assert.match(deleteMessage(agent({ state: 'working', pid: 7 })), /stopped first/);
+    assert.doesNotMatch(deleteMessage(agent({ state: 'blocked', pid: 7 })), /stopped first/);
   });
 });

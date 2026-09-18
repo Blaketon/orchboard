@@ -51,17 +51,14 @@ export function createClaudeActions(options: ClaudeActionsOptions = {}): ClaudeA
    * still holds its transcript, so an agent waiting for input has to be stopped before it can
    * be continued. The conversation itself is kept.
    */
-  async function stopAndWait(agent: Agent, pid: number): Promise<void> {
+  async function stopAndWait(agent: Agent, pid: number, failure: string): Promise<void> {
     checkId(agent);
     await runOrFail(['stop', agent.id], { fixedArgs: true });
     for (let waited = 0; waited < STOP_TIMEOUT_MS; waited += 200) {
       if (!alive(pid)) return;
       await sleep(200);
     }
-    throw new HttpError(
-      409,
-      'Could not stop this agent to continue it. Use the Terminal button to answer it directly.',
-    );
+    throw new HttpError(409, failure);
   }
 
   return {
@@ -92,7 +89,13 @@ export function createClaudeActions(options: ClaudeActionsOptions = {}): ClaudeA
       }
       await assertDirectory(agent.cwd);
       // An agent awaiting input keeps its process; stopping it first is what lets it continue.
-      if (agent.pid !== null) await stopAndWait(agent, agent.pid);
+      if (agent.pid !== null) {
+        await stopAndWait(
+          agent,
+          agent.pid,
+          'Could not stop this agent to continue it. Use the Terminal button to answer it directly.',
+        );
+      }
       await runOrFail(['--bg', '--resume', agent.sessionId, '--', prompt], { cwd: agent.cwd });
     },
 
@@ -105,10 +108,11 @@ export function createClaudeActions(options: ClaudeActionsOptions = {}): ClaudeA
     },
 
     async remove(agent) {
-      if (agent.pid !== null || agent.state === 'working') {
-        throw new HttpError(409, 'Stop the agent before deleting it.');
-      }
       checkId(agent);
+      // Finished and waiting agents can keep their process too; stop it so nothing is left running.
+      if (agent.pid !== null) {
+        await stopAndWait(agent, agent.pid, 'Could not stop this agent to delete it. Try again.');
+      }
       // `claude rm` refuses on its own when a worktree has unpushed work, and says why.
       await runOrFail(['rm', agent.id], { fixedArgs: true });
     },

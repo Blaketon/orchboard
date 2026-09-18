@@ -87,3 +87,13 @@ export function groupByState(agents: readonly Agent[]): Record<AgentState, Agent
   for (const group of Object.values(groups)) group.sort((a, b) => b.startedAt - a.startedAt);
   return groups;
 }
+
+/** What the delete confirmation says will happen to an agent. */
+export function deleteMessage(agent: Agent): string {
+  const name = `"${agent.name || agent.id}"`;
+  const stopped =
+    agent.state === 'working' ? ' It is still working and will be stopped first.' : '';
+  return agent.provider === 'codex'
+    ? `${name} will be removed from Orchboard.${stopped} Codex keeps the conversation in its own history.`
+    : `${name} and its conversation will be deleted, along with its git worktree when that is safe.${stopped} This cannot be undone.`;
+}

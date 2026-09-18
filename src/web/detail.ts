@@ -7,7 +7,7 @@ import type {
   Transcript,
   TranscriptPart,
 } from '../shared/api.ts';
-import { AGENT_LABELS, projectKey, projectLabel } from './agents.ts';
+import { AGENT_LABELS, deleteMessage, projectKey, projectLabel } from './agents.ts';
 import { postJson, requestJson } from './api.ts';
 import { confirmDialog } from './dialogs.ts';
 import { el } from './dom.ts';
@@ -127,19 +127,20 @@ export function createDetailPanel(options: {
     if (!agent) return;
     void confirmDialog({
       title: 'Delete this agent?',
-      message:
-        agent.provider === 'codex'
-          ? `"${agent.name || agent.id}" will be removed from Orchboard. Codex keeps the conversation in its own history.`
-          : `"${agent.name || agent.id}" and its conversation will be deleted, along with its git worktree when that is safe. This cannot be undone.`,
+      message: deleteMessage(agent),
       confirmLabel: 'Delete',
     }).then(async (confirmed) => {
       if (!confirmed) return;
+      // Stopping a live agent first can take a few seconds.
+      deleteButton.disabled = true;
       try {
         await requestJson('DELETE', `/api/agents/${encodeURIComponent(agent.id)}`);
-        dialog.close();
+        if (current?.id === agent.id) dialog.close();
         showToast('Agent deleted', 'success');
       } catch (error) {
         showToast(error instanceof Error ? error.message : String(error), 'error');
+      } finally {
+        deleteButton.disabled = false;
       }
     });
   });
@@ -204,9 +205,7 @@ export function createDetailPanel(options: {
       el('span', { text: `started ${formatAgo(agent.startedAt, Date.now())}` }),
     );
 
-    const running = agent.pid !== null || agent.state === 'working';
-    stopButton.hidden = !running;
-    deleteButton.hidden = running;
+    stopButton.hidden = agent.pid === null && agent.state !== 'working';
     // A Codex turn takes its input through its own process, so wait for the turn to end.
     // A Claude agent awaiting input still holds its session: sending stops it and continues it.
     const canReply = agent.provider === 'codex' ? agent.pid === null : agent.state !== 'working';

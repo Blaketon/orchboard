@@ -232,9 +232,8 @@ describe('CodexRunner', () => {
     await assert.rejects(runner.decide(agent, '99', { decision: 'accept' }), statusIs(404));
   });
 
-  it('interrupts the turn when stopped, and only removes stopped tasks', async () => {
+  it('interrupts the turn when stopped, then removes the task', async () => {
     await start();
-    await assert.rejects(runner.remove(only()), statusIs(409));
     await runner.stop(only());
     const interrupt = await servers[0]?.waitFor((message) => message.method === 'turn/interrupt');
     assert.deepEqual(interrupt?.params, { threadId: THREAD, turnId: 'turn-1' });
@@ -245,6 +244,20 @@ describe('CodexRunner', () => {
     await assert.rejects(runner.stop(only()), statusIs(409));
 
     await runner.remove(only());
+    assert.deepEqual(runner.agents(), []);
+  });
+
+  it('stops a running task before removing it', async () => {
+    await start();
+    await runner.remove(only());
+    const interrupt = await servers[0]?.waitFor((message) => message.method === 'turn/interrupt');
+    assert.deepEqual(interrupt?.params, { threadId: THREAD, turnId: 'turn-1' });
+    assert.deepEqual(runner.agents(), []);
+
+    // A fresh runner reads the saved list, so the task stays gone.
+    await runner.flush();
+    runner = createRunner();
+    await runner.load();
     assert.deepEqual(runner.agents(), []);
   });
 
