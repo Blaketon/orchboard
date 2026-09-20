@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import { describe, it } from 'node:test';
 import type { QueueState } from '../../shared/api.ts';
 import { HttpError } from '../http-error.ts';
@@ -14,7 +15,12 @@ import {
   updateTask,
 } from './queue-model.ts';
 
-const PROJECT = 'C:/Git/acme/storefront';
+// Absolute paths that are valid on whatever OS the tests run on: `addColumn` checks
+// `path.isAbsolute` natively, so a hardcoded `C:/...` path only passes on Windows.
+const NATIVE_ROOT = path.parse(process.cwd()).root;
+const RAW_PROJECT = path.join(NATIVE_ROOT, 'Git', 'acme', 'storefront');
+const PROJECT = RAW_PROJECT.replace(/\\/g, '/');
+const OTHER_PROJECT = path.join(NATIVE_ROOT, 'Git', 'other').replace(/\\/g, '/');
 
 function statusOf(run: () => unknown): number {
   try {
@@ -41,7 +47,7 @@ describe('queue columns', () => {
   it('adds columns with a normalized project path', () => {
     const state = addColumn(
       EMPTY_QUEUE,
-      { project: 'C:\\Git\\acme\\storefront\\', name: ' Next ' },
+      { project: `${RAW_PROJECT}${path.sep}`, name: ' Next ' },
       'x',
     );
     assert.deepEqual(state.columns, [{ id: 'x', project: PROJECT, name: 'Next' }]);
@@ -178,7 +184,7 @@ describe('queued tasks', () => {
   });
 
   it('refuses to move tasks to another project', () => {
-    const state = addColumn(sample(), { project: 'C:/Git/other', name: 'Other' }, 'other');
+    const state = addColumn(sample(), { project: OTHER_PROJECT, name: 'Other' }, 'other');
     assert.equal(
       statusOf(() => moveTask(state, 'a', { columnId: 'other', index: 0 })),
       400,

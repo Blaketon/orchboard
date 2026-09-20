@@ -6,6 +6,10 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import { HttpError } from '../http-error.ts';
 import { QueueStore } from './queue-store.ts';
 
+// An absolute path valid on whatever OS the tests run on: QueueStore's addColumn checks
+// `path.isAbsolute` natively, so a hardcoded `C:/...` path only passes on Windows.
+const PROJECT = path.join(path.parse(process.cwd()).root, 'Git', 'acme').replace(/\\/g, '/');
+
 describe('QueueStore', () => {
   let dataDir: string;
   let starts: unknown[];
@@ -30,7 +34,7 @@ describe('QueueStore', () => {
   });
 
   async function queueOneTask(): Promise<string> {
-    const withColumn = await store.addColumn({ project: 'C:/Git/acme', name: 'Next' });
+    const withColumn = await store.addColumn({ project: PROJECT, name: 'Next' });
     const columnId = withColumn.columns[0]?.id ?? '';
     const withTask = await store.addTask({
       columnId,
@@ -54,7 +58,7 @@ describe('QueueStore', () => {
     assert.deepEqual(starts, [
       {
         provider: 'claude',
-        cwd: 'C:/Git/acme',
+        cwd: PROJECT,
         prompt: 'Fix the tests',
         name: 'Fix the tests',
         permissionMode: 'acceptEdits',
