@@ -1,6 +1,6 @@
 {
   "name": "orchboard",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "An agentic project board for Claude Code and Codex: plan, queue, and track your AI coding agents across every project.",
   "keywords": [
     "claude-code",

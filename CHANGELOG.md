@@ -6,6 +6,8 @@ All notable changes to Orchboard are listed here. The format follows
 
 ## Unreleased
 
+## [0.1.0] - 2026-09-20
+
 ### Added
 
 - Live board of Claude Code background agents and Codex tasks, grouped into Awaiting input, Working
