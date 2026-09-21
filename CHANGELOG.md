@@ -6,6 +6,13 @@ All notable changes to Orchboard are listed here. The format follows
 
 ## Unreleased
 
+## [0.2.0] - 2026-09-21
+
+### Changed
+
+- The status columns' collapse button is now a resize handle on their trailing edge: drag to any
+  width, down to the same compact rail as before.
+
 ## [0.1.0] - 2026-09-20
 
 ### Added
