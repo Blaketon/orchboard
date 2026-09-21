@@ -3,7 +3,13 @@ import { BOARD_COLUMNS, groupByState, projectKey, projectLabel, type Project } f
 import { moveColumn, orderColumns } from './column-order.ts';
 import { el } from './dom.ts';
 import { formatAge } from './format.ts';
-import { toggleOpen, type StatusLayout } from './status-layout.ts';
+import {
+  clampStatusWidth,
+  isCollapsed,
+  RAIL_WIDTH,
+  toggleOpen,
+  type StatusLayout,
+} from './status-layout.ts';
 
 export interface StatusControls {
   readonly layout: StatusLayout;
@@ -52,22 +58,17 @@ export function renderBoard(
     if (key) columns.set(key, column);
     else trailing.push(column);
   }
-  // Collapsed, the status columns fold into one rail that stays in front; only full columns move.
-  const rail = options.status?.layout.collapsed
-    ? statusRail(groups, options, options.status)
-    : null;
-  const states: string[] = rail ? [] : BOARD_COLUMNS.map((column) => column.state);
-  const order = orderColumns([...states, ...columns.keys()], options.columnOrder ?? []);
-  if (!rail) {
-    // The collapse button goes on whichever status column is shown first.
-    const first = order.find((key) => states.includes(key));
-    for (const [state, column] of statusColumns(groups, options, first)) columns.set(state, column);
-  }
+  // The three status columns move and resize together, always leading the row. Without a project
+  // there is no queue to make room for, so they just show in full with no resize handle.
+  const status = options.status
+    ? statusGroup(groups, options, options.status)
+    : el('div', { className: 'status-columns' }, statusColumns(groups, options));
+  const order = orderColumns([...columns.keys()], options.columnOrder ?? []);
 
   // A drag in progress would be cancelled by replacing its card, so skip re-renders until it ends.
   if (container.querySelector('.dragging')) return;
   const row = el('div', { className: 'columns' }, [
-    rail,
+    status,
     ...order.map((key) => columns.get(key)),
     ...trailing,
   ]);
@@ -83,43 +84,40 @@ export function renderBoard(
   }
 }
 
-/** The full status columns by state; `collapseOn` is the one that gets the collapse button. */
-function statusColumns(
-  groups: Groups,
-  options: BoardOptions,
-  collapseOn: string | undefined,
-): [AgentState, HTMLElement][] {
+/**
+ * The status columns, grouped into one block that moves and resizes as a unit: the three full
+ * columns above the rail floor, folding into the collapsed rail at it. A handle on the trailing
+ * edge drags the block's width; dragging it down to the floor is what the rail used to need a
+ * button for.
+ */
+function statusGroup(groups: Groups, options: BoardOptions, controls: StatusControls): HTMLElement {
+  const { layout, onChange } = controls;
+  const collapsed = isCollapsed(layout);
+  const inner = collapsed
+    ? [statusRailHeader(), ...statusRailTiles(groups, options, controls)]
+    : statusColumns(groups, options);
+  const group = el(
+    'div',
+    { className: collapsed ? 'status-columns status-columns-collapsed' : 'status-columns' },
+    [...inner, statusResizeHandle()],
+  );
+  if (layout.width !== null) group.style.flex = `0 0 ${layout.width}px`;
+  attachResizeHandle(group, layout, onChange);
+  return group;
+}
+
+/** The full status columns, one per state. */
+function statusColumns(groups: Groups, options: BoardOptions): HTMLElement[] {
   return BOARD_COLUMNS.map(({ state, title }) => {
     const cards = groups[state].map((agent) => card(agent, options));
-    const controls = options.status;
-    const column = el(
+    return el(
       'section',
-      {
-        className: 'column',
-        attrs: { 'data-state': state, 'data-column-key': state, 'aria-label': title },
-      },
+      { className: 'column', attrs: { 'data-state': state, 'aria-label': title } },
       [
         el('header', { className: 'column-header' }, [
           el('h2', { className: 'column-title', text: title }),
           el('span', { className: 'column-count', text: String(cards.length) }),
           state === 'done' ? clearButton(groups.done, options) : null,
-          state === collapseOn && controls
-            ? el('button', {
-                className: 'icon-button column-collapse',
-                text: '«',
-                attrs: {
-                  type: 'button',
-                  'aria-label': 'Collapse status columns',
-                  title: 'Collapse status columns to make room for the project board',
-                  'data-focus-key': 'status-toggle',
-                },
-                on: {
-                  click: () => {
-                    controls.onChange({ ...controls.layout, collapsed: true });
-                  },
-                },
-              })
-            : null,
         ]),
         el(
           'div',
@@ -128,14 +126,23 @@ function statusColumns(
         ),
       ],
     );
-    return [state, column];
   });
 }
 
+function statusRailHeader(): HTMLElement {
+  return el('div', { className: 'status-rail-header' }, [
+    el('span', { className: 'status-rail-title', text: 'Agents' }),
+  ]);
+}
+
 /** The status columns folded into one narrow stack of counts, each able to list its agents. */
-function statusRail(groups: Groups, options: BoardOptions, controls: StatusControls): HTMLElement {
+function statusRailTiles(
+  groups: Groups,
+  options: BoardOptions,
+  controls: StatusControls,
+): HTMLElement[] {
   const { layout, onChange } = controls;
-  const tiles = BOARD_COLUMNS.map(({ state, title }) => {
+  return BOARD_COLUMNS.map(({ state, title }) => {
     const agents = groups[state];
     const open = layout.open.includes(state);
     return el(
@@ -193,28 +200,77 @@ function statusRail(groups: Groups, options: BoardOptions, controls: StatusContr
       ],
     );
   });
+}
 
-  return el('div', { className: 'status-rail' }, [
-    el('div', { className: 'status-rail-header' }, [
-      el('span', { className: 'status-rail-title', text: 'Agents' }),
-      el('button', {
-        className: 'icon-button',
-        text: '»',
-        attrs: {
-          type: 'button',
-          'aria-label': 'Expand status columns',
-          title: 'Expand status columns',
-          'data-focus-key': 'status-toggle',
-        },
-        on: {
-          click: () => {
-            onChange({ ...layout, collapsed: false });
-          },
-        },
-      }),
-    ]),
-    ...tiles,
-  ]);
+/** The vertical bar dragged to resize the status columns; collapsing to the rail is its floor. */
+function statusResizeHandle(): HTMLElement {
+  return el('div', {
+    className: 'status-resize-handle',
+    attrs: {
+      role: 'separator',
+      'aria-orientation': 'vertical',
+      'aria-label': 'Resize status columns',
+      title: 'Drag to resize, or drag to the edge to collapse. Double-click to reset.',
+      tabindex: '0',
+      'data-focus-key': 'status-resize',
+    },
+  });
+}
+
+const RESIZE_STEP = 40;
+
+/** Wires up the handle at the end of `group` to drag, and arrow-key, its width. */
+function attachResizeHandle(
+  group: HTMLElement,
+  layout: StatusLayout,
+  onChange: (layout: StatusLayout) => void,
+): void {
+  const handle = group.querySelector<HTMLElement>(':scope > .status-resize-handle');
+  if (!handle) return;
+  let drag: { startX: number; startWidth: number; pointerId: number } | null = null;
+
+  handle.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return;
+    handle.setPointerCapture(event.pointerId);
+    event.preventDefault();
+    drag = {
+      startX: event.clientX,
+      startWidth: group.getBoundingClientRect().width,
+      pointerId: event.pointerId,
+    };
+  });
+  handle.addEventListener('pointermove', (event) => {
+    if (drag?.pointerId !== event.pointerId) return;
+    // Marking the group `.dragging` skips re-renders (see `renderBoard`) until the drag ends.
+    group.classList.add('dragging');
+    const width = clampStatusWidth(drag.startWidth + (event.clientX - drag.startX));
+    group.style.flex = `0 0 ${width}px`;
+  });
+  const endDrag = (event: PointerEvent) => {
+    if (drag?.pointerId !== event.pointerId) return;
+    drag = null;
+    const dragged = group.classList.contains('dragging');
+    group.classList.remove('dragging');
+    if (!dragged) return; // A plain click leaves the layout alone.
+    onChange({ ...layout, width: clampStatusWidth(group.getBoundingClientRect().width) });
+  };
+  handle.addEventListener('pointerup', endDrag);
+  handle.addEventListener('pointercancel', endDrag);
+  handle.addEventListener('lostpointercapture', endDrag);
+  handle.addEventListener('dblclick', () => {
+    onChange({ ...layout, width: null });
+  });
+  handle.addEventListener('keydown', (event) => {
+    const width = layout.width ?? group.getBoundingClientRect().width;
+    if (event.key === 'ArrowLeft')
+      onChange({ ...layout, width: clampStatusWidth(width - RESIZE_STEP) });
+    else if (event.key === 'ArrowRight')
+      onChange({ ...layout, width: clampStatusWidth(width + RESIZE_STEP) });
+    else if (event.key === 'Home') onChange({ ...layout, width: RAIL_WIDTH });
+    else if (event.key === 'Enter' || event.key === ' ') onChange({ ...layout, width: null });
+    else return;
+    event.preventDefault();
+  });
 }
 
 function clearButton(done: readonly Agent[], options: BoardOptions): HTMLButtonElement | null {

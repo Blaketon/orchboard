@@ -446,6 +446,57 @@ textarea {
   background: var(--surface-2);
 }
 
+/*
+ * The status columns as one resizable block: `flex: 1 1 auto` by default, sharing space with the
+ * queue columns like any other column; a drag sets an explicit `flex-basis` instead (see board.ts).
+ * Collapsed, it stacks its tiles into the narrow rail. Either way the resize handle is an absolutely
+ * positioned bar along the block's right edge, so it stays put regardless of the internal layout.
+ */
+.status-columns {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  gap: 16px;
+  align-items: flex-start;
+  min-width: 0;
+  padding-right: 10px;
+}
+
+.status-columns.dragging {
+  user-select: none;
+}
+
+.status-columns-collapsed {
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-columns-collapsed .status-tile {
+  flex: none;
+  max-width: none;
+}
+
+/* Drag to resize the block; drag it to the floor to collapse, past it to expand back out. */
+.status-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 10px;
+  border-radius: 4px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.status-resize-handle:hover,
+.status-resize-handle:focus-visible {
+  background: color-mix(in srgb, var(--focus) 35%, transparent);
+}
+
+.status-columns.dragging .status-resize-handle {
+  background: color-mix(in srgb, var(--focus) 55%, transparent);
+}
+
 /* A column is moved by dragging its header. */
 .column-header[draggable='true'] {
   cursor: grab;
@@ -689,15 +740,6 @@ textarea {
 
 /* ---------- Collapsed status rail ---------- */
 
-/* The status columns folded into one narrow stack, leaving the width to the project's queue. */
-.status-rail {
-  display: flex;
-  flex: 0 0 240px;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-
 .status-rail-header {
   display: flex;
   align-items: center;
@@ -709,11 +751,6 @@ textarea {
   font-weight: 650;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-}
-
-.status-rail .status-tile {
-  flex: none;
-  max-width: none;
 }
 
 .status-tile[data-attention='true'] {
@@ -762,11 +799,6 @@ textarea {
   color: var(--muted);
   font-size: 13px;
   text-align: center;
-}
-
-/* The status columns' collapse button, kept from making its header taller than its neighbours'. */
-.column-collapse {
-  margin: -4px -4px -4px 0;
 }
 
 .status-tile-toggle:hover .column-title {
