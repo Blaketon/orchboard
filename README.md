@@ -165,3 +165,5 @@ Orchboard is free and MIT licensed. If it saves you time, you can
 Orchboard is an independent project. It is not affiliated with, endorsed by, or sponsored by
 Anthropic or OpenAI. "Claude" and "Claude Code" are trademarks of Anthropic; "Codex" and "ChatGPT"
 are trademarks of OpenAI.
+
+This software was built with the help of AI tools.
